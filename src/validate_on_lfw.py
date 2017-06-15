@@ -29,20 +29,21 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow as tf
-import numpy as np
 import argparse
-import facenet
-import lfw
 import os
 import sys
 import math
+
+import tensorflow as tf
+import numpy as np
+import facenet
+import lfw
 from sklearn import metrics
 from scipy.optimize import brentq
 from scipy import interpolate
 
 def main(args):
-  
+    
     with tf.Graph().as_default():
       
         with tf.Session() as sess:

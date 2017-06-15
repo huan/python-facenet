@@ -1,19 +1,19 @@
 """Performs face alignment and calculates L2 distance between the embeddings of images."""
 
 # MIT License
-# 
+#
 # Copyright (c) 2016 David Sandberg
-# 
+#
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
 # in the Software without restriction, including without limitation the rights
 # to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 # copies of the Software, and to permit persons to whom the Software is
 # furnished to do so, subject to the following conditions:
-# 
+#
 # The above copyright notice and this permission notice shall be included in all
 # copies or substantial portions of the Software.
-# 
+#
 # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -41,10 +41,10 @@ def main(args):
     with tf.Graph().as_default():
 
         with tf.Session() as sess:
-      
+
             # Load the model
             facenet.load_model(args.model)
-    
+
             # Get input and output tensors
             images_placeholder = tf.get_default_graph().get_tensor_by_name("input:0")
             embeddings = tf.get_default_graph().get_tensor_by_name("embeddings:0")
@@ -53,14 +53,14 @@ def main(args):
             # Run forward pass to calculate embeddings
             feed_dict = { images_placeholder: images, phase_train_placeholder:False }
             emb = sess.run(embeddings, feed_dict=feed_dict)
-            
+
             nrof_images = len(args.image_files)
 
             print('Images:')
             for i in range(nrof_images):
                 print('%1d: %s' % (i, args.image_files[i]))
             print('')
-            
+
             # Print distance matrix
             print('Distance matrix')
             print('    ', end='')
@@ -73,24 +73,24 @@ def main(args):
                     dist = np.sqrt(np.sum(np.square(np.subtract(emb[i,:], emb[j,:]))))
                     print('  %1.4f  ' % dist, end='')
                 print('')
-            
-            
+
+
 def load_and_align_data(image_paths, image_size, margin, gpu_memory_fraction):
 
     minsize = 20 # minimum size of face
     threshold = [ 0.6, 0.7, 0.7 ]  # three steps's threshold
     factor = 0.709 # scale factor
-    
+
     print('Creating networks and loading parameters')
     with tf.Graph().as_default():
         gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=gpu_memory_fraction)
         sess = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options, log_device_placement=False))
         with sess.as_default():
             pnet, rnet, onet = align.detect_face.create_mtcnn(sess, None)
-  
+
     nrof_samples = len(image_paths)
     img_list = [None] * nrof_samples
-    for i in xrange(nrof_samples):
+    for i in range(nrof_samples):
         img = misc.imread(os.path.expanduser(image_paths[i]))
         img_size = np.asarray(img.shape)[0:2]
         bounding_boxes, _ = align.detect_face.detect_face(img, minsize, pnet, rnet, onet, threshold, factor)
@@ -109,8 +109,8 @@ def load_and_align_data(image_paths, image_size, margin, gpu_memory_fraction):
 
 def parse_arguments(argv):
     parser = argparse.ArgumentParser()
-    
-    parser.add_argument('model', type=str, 
+
+    parser.add_argument('model', type=str,
         help='Could be either a directory containing the meta_file and ckpt_file or a model protobuf (.pb) file')
     parser.add_argument('image_files', type=str, nargs='+', help='Images to compare')
     parser.add_argument('--image_size', type=int,
