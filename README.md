@@ -45,3 +45,15 @@ Currently, the best performing model is an Inception-Resnet-v1 model trained on 
 
 ## Performance
 The accuracy on LFW for the model [20170512-110547](https://drive.google.com/file/d/0B5MzpY9kBtDVZ2RpVDYwWmxoSUk) is 0.992+-0.003. A description of how to run the test can be found on the page [Validate on LFW](https://github.com/davidsandberg/facenet/wiki/Validate-on-lfw).
+
+
+#### Memo
+
+
+python src/train_softmax.py --logs_base_dir /facenet/logs/facenet/ --models_base_dir /facenet/models/facenet/20170512-110547/ --data_dir /facenet/datasets/lfw/lfw_maxpy_mtcnnpy_182/ --image_size 160 --model_def models.inception_resnet_v1 --optimizer RMSPROP --learning_rate -1 --max_nrof_epochs 80 --keep_probability 0.8 --random_crop --random_flip --learning_rate_schedule_file data/learning_rate_schedule_classifier_casia.txt --weight_decay 5e-5 --center_loss_factor 1e-2 --center_loss_alfa 0.9
+
+for N in {1..4}; do python src/align/align_dataset_mtcnn.py /facenet/datasets/lfw/raw /facenet/datasets/lfw/lfw_mtcnnpy_160 --image_size 160 --margin 32 --random_order --gpu_memory_fraction 0.25 & done
+
+python src/train_tripletloss.py --logs_base_dir /facenet/logs/facenet/ --models_base_dir /facenet/models/facenet/ --data_dir /facenet/datasets/lfw/lfw_maxpy_mtcnnpy_182/ --image_size 160 --model_def models.inception_resnet_v1 --lfw_dir /facenet/datasets/lfw/lfw_mtcnnpy_160/ --optimizer RMSPROP --learning_rate 0.01 --weight_decay 1e-4 --max_nrof_epochs 500 --gpu_memory_fraction 0.5
+
+python src/validate_on_lfw.py /facenet/datasets/lfw/lfw_mtcnnpy_160 /facenet/models/facenet/20170512-110547

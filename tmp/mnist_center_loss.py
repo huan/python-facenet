@@ -133,13 +133,13 @@ def main(argv=None):  # pylint: disable=unused-argument
         train_labels_filename = maybe_download('train-labels-idx1-ubyte.gz')
         test_data_filename = maybe_download('t10k-images-idx3-ubyte.gz')
         test_labels_filename = maybe_download('t10k-labels-idx1-ubyte.gz')
-    
+
         # Extract it into numpy arrays.
         train_data = extract_data(train_data_filename, 60000)
         train_labels = extract_labels(train_labels_filename, 60000)
         test_data = extract_data(test_data_filename, 10000)
         test_labels = extract_labels(test_labels_filename, 10000)
-    
+
         # Generate a validation set.
         validation_data = train_data[:VALIDATION_SIZE, ...]
         validation_labels = train_labels[:VALIDATION_SIZE]
@@ -189,7 +189,7 @@ def main(argv=None):  # pylint: disable=unused-argument
                                                   dtype=data_type()))
     fc2_biases = tf.Variable(tf.constant(
         0.1, shape=[NUM_LABELS], dtype=data_type()))
-    
+
     def batch_norm(x, phase_train):  #pylint: disable=unused-variable
         """
         Batch normalization on convolutional maps.
@@ -211,7 +211,7 @@ def main(argv=None):  # pylint: disable=unused-argument
                                name=name+'/beta', trainable=True, dtype=x.dtype)
             gamma = tf.Variable(tf.constant(1.0, shape=[n_out], dtype=x.dtype),
                                 name=name+'/gamma', trainable=True, dtype=x.dtype)
-          
+
             batch_mean, batch_var = tf.nn.moments(x, [0], name='moments')
             ema = tf.train.ExponentialMovingAverage(decay=0.9)
             def mean_var_with_update():
@@ -223,7 +223,7 @@ def main(argv=None):  # pylint: disable=unused-argument
                                               lambda: (ema.average(batch_mean), ema.average(batch_var)))
             normed = tf.nn.batch_normalization(x, mean, var, beta, gamma, 1e-3)
         return normed
-    
+
 
     # We will replicate the model structure for the training subgraph, as well
     # as the evaluation subgraphs, while sharing the trainable parameters.
@@ -280,13 +280,13 @@ def main(argv=None):  # pylint: disable=unused-argument
     #center_loss, update_centers = center_loss_op(hidden, train_labels_node)
     center_loss, _ = facenet.center_loss(hidden, train_labels_node, 0.95, NUM_LABELS)
     loss = xent_loss + beta * center_loss
-  
+
     # L2 regularization for the fully connected parameters.
     regularizers = (tf.nn.l2_loss(fc1_weights) + tf.nn.l2_loss(fc1_biases) +
                     tf.nn.l2_loss(fc2_weights) + tf.nn.l2_loss(fc2_biases))
     # Add the regularization term to the loss.
     loss += 5e-4 * regularizers
-  
+
     # Optimizer: set up a variable that's incremented once per batch and
     # controls the learning rate decay.
     batch = tf.Variable(0, dtype=data_type())
@@ -301,14 +301,14 @@ def main(argv=None):  # pylint: disable=unused-argument
     optimizer = tf.train.MomentumOptimizer(learning_rate,
                                            0.9).minimize(loss,
                                                          global_step=batch)
-  
+
     # Predictions for the current training minibatch.
     train_prediction = tf.nn.softmax(logits)
-  
+
     # Predictions for the test and validation, which we'll compute less often.
     eval_logits, eval_embeddings = model(eval_data)
     eval_prediction = tf.nn.softmax(eval_logits)
-    
+
     # Small utility function to evaluate a dataset by feeding batches of data to
     # {eval_data} and pulling the results from {eval_predictions}.
     # Saves memory and enables this to run on smaller GPUs.
@@ -318,7 +318,7 @@ def main(argv=None):  # pylint: disable=unused-argument
         if size < EVAL_BATCH_SIZE:
             raise ValueError("batch size for evals larger than dataset: %d" % size)
         predictions = np.ndarray(shape=(size, NUM_LABELS), dtype=np.float32)
-        for begin in xrange(0, size, EVAL_BATCH_SIZE):
+        for begin in range(0, size, EVAL_BATCH_SIZE):
             end = begin + EVAL_BATCH_SIZE
             if end <= size:
                 predictions[begin:end, :] = sess.run(
@@ -330,14 +330,14 @@ def main(argv=None):  # pylint: disable=unused-argument
                     feed_dict={eval_data: data[-EVAL_BATCH_SIZE:, ...]})
                 predictions[begin:, :] = batch_predictions[begin - size:, :]
         return predictions
-  
+
     def calculate_embeddings(data, sess):
         """Get all predictions for a dataset by running it in small batches."""
         size = data.shape[0]
         if size < EVAL_BATCH_SIZE:
             raise ValueError("batch size for evals larger than dataset: %d" % size)
         predictions = np.ndarray(shape=(size, 2), dtype=np.float32)
-        for begin in xrange(0, size, EVAL_BATCH_SIZE):
+        for begin in range(0, size, EVAL_BATCH_SIZE):
             end = begin + EVAL_BATCH_SIZE
             if end <= size:
                 predictions[begin:end, :] = sess.run(
@@ -357,7 +357,7 @@ def main(argv=None):  # pylint: disable=unused-argument
         tf.global_variables_initializer().run() #pylint: disable=no-member
         print('Initialized!')
         # Loop through training steps.
-        for step in xrange(int(num_epochs * train_size) // BATCH_SIZE):
+        for step in range(int(num_epochs * train_size) // BATCH_SIZE):
             # Compute the offset of the current minibatch in the data.
             # Note that we could use better randomization across epochs.
             offset = (step * BATCH_SIZE) % (train_size - BATCH_SIZE)
@@ -388,9 +388,9 @@ def main(argv=None):  # pylint: disable=unused-argument
             print('test_error', test_error)
             assert test_error == 0.0, 'expected 0.0 test_error, got %.2f' % (
                 test_error,)
-            
+
         train_embeddings = calculate_embeddings(train_data, sess)
-        
+
         color_list = ['b', 'g', 'r', 'c', 'm', 'y', 'k', 'b', 'g', 'r', 'c' ]
         plt.figure(1)
         for n in range(0,10):

@@ -214,9 +214,15 @@ def train(args, sess, dataset, epoch, image_paths_placeholder, labels_placeholde
         nrof_batches = int(np.ceil(nrof_examples / args.batch_size))
         for i in range(nrof_batches):
             batch_size = min(nrof_examples-i*args.batch_size, args.batch_size)
-            emb, lab = sess.run([embeddings, labels_batch], feed_dict={batch_size_placeholder: batch_size,
-                learning_rate_placeholder: lr, phase_train_placeholder: True})
-            emb_array[lab,:] = emb
+            emb, lab = sess.run(
+                [embeddings, labels_batch],
+                feed_dict={
+                    batch_size_placeholder: batch_size,
+                    learning_rate_placeholder: lr,
+                    phase_train_placeholder: True
+                }
+            )
+            emb_array[lab, :] = emb
         print('%.3f' % (time.time()-start_time))
 
         # Select triplets based on the embeddings
