@@ -1,5 +1,6 @@
 """Training a face recognizer with TensorFlow based on the FaceNet paper
-FaceNet: A Unified Embedding for Face Recognition and Clustering: http://arxiv.org/abs/1503.03832
+FaceNet: A Unified Embedding for Face Recognition and Clustering:
+http://arxiv.org/abs/1503.03832
 """
 # MIT License
 #
@@ -12,8 +13,8 @@ FaceNet: A Unified Embedding for Face Recognition and Clustering: http://arxiv.o
 # copies of the Software, and to permit persons to whom the Software is
 # furnished to do so, subject to the following conditions:
 #
-# The above copyright notice and this permission notice shall be included in all
-# copies or substantial portions of the Software.
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
 #
 # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -46,6 +47,7 @@ import facenet
 import lfw
 import h5py
 
+
 def main(args):
     """main
     """
@@ -54,10 +56,12 @@ def main(args):
 
     subdir = datetime.strftime(datetime.now(), '%Y%m%d-%H%M%S')
     log_dir = os.path.join(os.path.expanduser(args.logs_base_dir), subdir)
-    if not os.path.isdir(log_dir):  # Create the log directory if it doesn't exist
+    if not os.path.isdir(log_dir):
+        # Create the log directory if it doesn't exist
         os.makedirs(log_dir)
     model_dir = os.path.join(os.path.expanduser(args.models_base_dir), subdir)
-    if not os.path.isdir(model_dir):  # Create the model directory if it doesn't exist
+    if not os.path.isdir(model_dir):
+        # Create the model directory if it doesn't exist
         os.makedirs(model_dir)
 
     # Store some git revision info in a text file in the log directory
@@ -94,9 +98,10 @@ def main(args):
 
         # Get a list of image paths and their labels
         image_list, label_list = facenet.get_image_paths_and_labels(train_set)
-        assert len(image_list) > 0, 'The dataset should not be empty'
+        assert image_list, 'The dataset should not be empty'
 
-        # Create a queue that produces indices into the image_list and label_list
+        # Create a queue that produces indices into
+        # the image_list and label_list
         labels = ops.convert_to_tensor(label_list, dtype=tf.int32)
         range_size = array_ops.shape(labels)[0]
         index_queue = tf.train.range_input_producer(
@@ -106,7 +111,8 @@ def main(args):
         index_dequeue_op = index_queue.dequeue_many(
             args.batch_size*args.epoch_size, 'index_dequeue')
 
-        learning_rate_placeholder = tf.placeholder(tf.float32, name='learning_rate')
+        learning_rate_placeholder = tf.placeholder(
+            tf.float32, name='learning_rate')
 
         batch_size_placeholder = tf.placeholder(tf.int32, name='batch_size')
 
@@ -136,23 +142,26 @@ def main(args):
                 file_contents = tf.read_file(filename)
                 image = tf.image.decode_png(file_contents)
                 if args.random_rotate:
-                    image = tf.py_func(facenet.random_rotate_image, [image], tf.uint8)
+                    image = tf.py_func(facenet.random_rotate_image,
+                                       [image], tf.uint8)
                 if args.random_crop:
-                    image = tf.random_crop(image, [args.image_size, args.image_size, 3])
+                    image = tf.random_crop(
+                        image, [args.image_size, args.image_size, 3])
                 else:
                     image = tf.image.resize_image_with_crop_or_pad(
                         image, args.image_size, args.image_size)
                 if args.random_flip:
                     image = tf.image.random_flip_left_right(image)
 
-                #pylint: disable=no-member
+                # pylint: disable=no-member
                 image.set_shape((args.image_size, args.image_size, 3))
                 images.append(tf.image.per_image_standardization(image))
             images_and_labels.append([images, label])
 
         image_batch, label_batch = tf.train.batch_join(
             images_and_labels, batch_size=batch_size_placeholder,
-            shapes=[(args.image_size, args.image_size, 3), ()], enqueue_many=True,
+            shapes=[(args.image_size, args.image_size, 3), ()],
+            enqueue_many=True,
             capacity=4 * nrof_preprocess_threads * args.batch_size,
             allow_smaller_final_batch=True)
         image_batch = tf.identity(image_batch, 'image_batch')
@@ -182,8 +191,10 @@ def main(args):
         if args.center_loss_factor > 0.0:
             prelogits_center_loss, _ = facenet.center_loss(
                 prelogits, label_batch, args.center_loss_alfa, nrof_classes)
-            tf.add_to_collection(tf.GraphKeys.REGULARIZATION_LOSSES,
-                                 prelogits_center_loss * args.center_loss_factor)
+            tf.add_to_collection(
+                tf.GraphKeys.REGULARIZATION_LOSSES,
+                prelogits_center_loss * args.center_loss_factor,
+            )
 
         learning_rate = tf.train.exponential_decay(
             learning_rate_placeholder, global_step,
@@ -193,13 +204,17 @@ def main(args):
 
         # Calculate the average cross entropy loss across the batch
         cross_entropy = tf.nn.sparse_softmax_cross_entropy_with_logits(
-            labels=label_batch, logits=logits, name='cross_entropy_per_example')
-        cross_entropy_mean = tf.reduce_mean(cross_entropy, name='cross_entropy')
+            labels=label_batch, logits=logits,
+            name='cross_entropy_per_example')
+        cross_entropy_mean = tf.reduce_mean(cross_entropy,
+                                            name='cross_entropy')
         tf.add_to_collection('losses', cross_entropy_mean)
 
         # Calculate the total losses
-        regularization_losses = tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES)
-        total_loss = tf.add_n([cross_entropy_mean] + regularization_losses, name='total_loss')
+        regularization_losses = tf.get_collection(
+            tf.GraphKeys.REGULARIZATION_LOSSES)
+        total_loss = tf.add_n([cross_entropy_mean] + regularization_losses,
+                              name='total_loss')
 
         # Build a Graph that trains the model with one batch of examples
         # and updates the model parameters
@@ -247,7 +262,8 @@ def main(args):
                       regularization_losses, args.learning_rate_schedule_file)
 
                 # Save variables and the metagraph if it doesn't exist already
-                save_variables_and_metagraph(sess, saver, summary_writer, model_dir, subdir, step)
+                save_variables_and_metagraph(sess, saver, summary_writer,
+                                             model_dir, subdir, step)
 
                 # Evaluate on LFW
                 if args.lfw_dir:
@@ -260,25 +276,31 @@ def main(args):
     sess.close()
     return model_dir
 
+
 def find_threshold(var, percentile):
     """ find threshold
     """
     hist, bin_edges = np.histogram(var, 100)
     cdf = np.float32(np.cumsum(hist)) / np.sum(hist)  # pylint: disable=E1101
     bin_centers = (bin_edges[:-1]+bin_edges[1:])/2
-    #plt.plot(bin_centers, cdf)
+    # plt.plot(bin_centers, cdf)
     threshold = np.interp(percentile*0.01, cdf, bin_centers)
     return threshold
 
-def filter_dataset(dataset, data_filename, percentile, min_nrof_images_per_class):
+
+def filter_dataset(dataset, data_filename, percentile,
+                   min_nrof_images_per_class):
     """filter dataset
     """
-    with h5py.File(data_filename, 'r') as f:
-        distance_to_center = np.array(f.get('distance_to_center'))
-        label_list = np.array(f.get('label_list'))
-        image_list = np.array(f.get('image_list'))
-        distance_to_center_threshold = find_threshold(distance_to_center, percentile)
-        indices = np.where(distance_to_center >= distance_to_center_threshold)[0]
+    with h5py.File(data_filename, 'r') as myfile:
+        distance_to_center = np.array(myfile.get('distance_to_center'))
+        label_list = np.array(myfile.get('label_list'))
+        image_list = np.array(myfile.get('image_list'))
+        distance_to_center_threshold = find_threshold(distance_to_center,
+                                                      percentile)
+        indices = np.where(
+            distance_to_center >= distance_to_center_threshold,
+        )[0]
         filtered_dataset = dataset
         removelist = []
         for i in indices:
@@ -286,7 +308,8 @@ def filter_dataset(dataset, data_filename, percentile, min_nrof_images_per_class
             image = image_list[i]
             if image in filtered_dataset[label].image_paths:
                 filtered_dataset[label].image_paths.remove(image)
-            if len(filtered_dataset[label].image_paths) < min_nrof_images_per_class:
+            if len(filtered_dataset[label].image_paths) \
+                    < min_nrof_images_per_class:
                 removelist.append(label)
 
         ix_labels = sorted(list(set(removelist)), reverse=True)
@@ -294,6 +317,7 @@ def filter_dataset(dataset, data_filename, percentile, min_nrof_images_per_class
             del filtered_dataset[i]
 
     return filtered_dataset
+
 
 def train(args, sess, epoch, image_list, label_list, index_dequeue_op,
           enqueue_op, image_paths_placeholder, labels_placeholder,
@@ -306,9 +330,10 @@ def train(args, sess, epoch, image_list, label_list, index_dequeue_op,
     batch_number = 0
 
     if args.learning_rate > 0.0:
-        lrate = args.learning_rate
+        lnrt = args.learning_rate
     else:
-        lrate = facenet.get_learning_rate_from_file(learning_rate_schedule_file, epoch)
+        lnrt = facenet.get_learning_rate_from_file(
+            learning_rate_schedule_file, epoch)
 
     index_epoch = sess.run(index_dequeue_op)
     label_epoch = np.array(label_list)[index_epoch]
@@ -326,9 +351,9 @@ def train(args, sess, epoch, image_list, label_list, index_dequeue_op,
     while batch_number < args.epoch_size:
         start_time = time.time()
         feed_dict = {
-            learning_rate_placeholder: lrate,
-            phase_train_placeholder:True,
-            batch_size_placeholder:args.batch_size}
+            learning_rate_placeholder: lnrt,
+            phase_train_placeholder: True,
+            batch_size_placeholder: args.batch_size}
         if batch_number % 100 == 0:
             err, _, step, reg_loss, summary_str = sess.run(
                 [loss, train_op, global_step,
@@ -341,15 +366,17 @@ def train(args, sess, epoch, image_list, label_list, index_dequeue_op,
                 feed_dict=feed_dict)
         duration = time.time() - start_time
         print('Epoch: [%d][%d/%d]\tTime %.3f\tLoss %2.3f\tRegLoss %2.3f' %
-              (epoch, batch_number+1, args.epoch_size, duration, err, np.sum(reg_loss)))
+              (epoch, batch_number+1, args.epoch_size,
+               duration, err, np.sum(reg_loss)))
         batch_number += 1
         train_time += duration
     # Add validation loss and accuracy to summary
     summary = tf.Summary()
-    #pylint: disable=maybe-no-member
+    # pylint: disable=maybe-no-member
     summary.value.add(tag='time/total', simple_value=train_time)
     summary_writer.add_summary(summary, step)
     return step
+
 
 def evaluate(sess, enqueue_op, image_paths_placeholder, labels_placeholder,
              phase_train_placeholder, batch_size_placeholder,
@@ -371,12 +398,16 @@ def evaluate(sess, enqueue_op, image_paths_placeholder, labels_placeholder,
     embedding_size = embeddings.get_shape()[1]
     nrof_images = len(actual_issame)*2
     assert nrof_images % batch_size == 0, ('The number of LFW images must be '
-                                           'an integer multiple of the LFW batch size')
+                                           'an integer multiple of the LFW '
+                                           'batch size')
     nrof_batches = nrof_images // batch_size
     emb_array = np.zeros((nrof_images, embedding_size))
     lab_array = np.zeros((nrof_images,))
     for _ in range(nrof_batches):
-        feed_dict = {phase_train_placeholder:False, batch_size_placeholder:batch_size}
+        feed_dict = {
+            phase_train_placeholder:    False,
+            batch_size_placeholder:     batch_size,
+        }
         emb, lab = sess.run([embeddings, labels], feed_dict=feed_dict)
         lab_array[lab] = lab
         emb_array[lab] = emb
@@ -392,15 +423,18 @@ def evaluate(sess, enqueue_op, image_paths_placeholder, labels_placeholder,
     lfw_time = time.time() - start_time
     # Add validation loss and accuracy to summary
     summary = tf.Summary()
-    #pylint: disable=maybe-no-member
+    # pylint: disable=maybe-no-member
     summary.value.add(tag='lfw/accuracy', simple_value=np.mean(accuracy))
     summary.value.add(tag='lfw/val_rate', simple_value=val)
     summary.value.add(tag='time/lfw', simple_value=lfw_time)
     summary_writer.add_summary(summary, step)
-    with open(os.path.join(log_dir, 'lfw_result.txt'), 'at') as f:
-        f.write('%d\t%.5f\t%.5f\n' % (step, np.mean(accuracy), val))
+    with open(os.path.join(log_dir, 'lfw_result.txt'), 'at') as myfile:
+        myfile.write('%d\t%.5f\t%.5f\n' % (step, np.mean(accuracy), val))
 
-def save_variables_and_metagraph(sess, saver, summary_writer, model_dir, model_name, step):
+
+def save_variables_and_metagraph(
+    sess, saver, summary_writer, model_dir, model_name, step,
+):
     """ Save the model checkpoint
     """
     print('Saving variables')
@@ -418,9 +452,11 @@ def save_variables_and_metagraph(sess, saver, summary_writer, model_dir, model_n
         save_time_metagraph = time.time() - start_time
         print('Metagraph saved in %.2f seconds' % save_time_metagraph)
     summary = tf.Summary()
-    #pylint: disable=maybe-no-member
-    summary.value.add(tag='time/save_variables', simple_value=save_time_variables)
-    summary.value.add(tag='time/save_metagraph', simple_value=save_time_metagraph)
+    # pylint: disable=maybe-no-member
+    summary.value.add(tag='time/save_variables',
+                      simple_value=save_time_variables)
+    summary.value.add(tag='time/save_metagraph',
+                      simple_value=save_time_metagraph)
     summary_writer.add_summary(summary, step)
 
 
@@ -446,7 +482,8 @@ def parse_arguments(argv):
                         help='Path to the data directory containing '
                              'aligned face patches. Multiple '
                              'directories are separated with colon.',
-                        default='~/datasets/casia/casia_maxpy_mtcnnalign_182_160')
+                        default='~/datasets/casia/'
+                                'casia_maxpy_mtcnnalign_182_160')
     parser.add_argument('--model_def', type=str,
                         help='Model definition. Points to a module containing '
                              'the definition of the inference graph.',

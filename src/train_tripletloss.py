@@ -245,6 +245,7 @@ def main(args):
     return model_dir
 
 
+# pylint: disable=W0613
 def train(args, sess, dataset, epoch, image_paths_placeholder,
           labels_placeholder, labels_batch,
           batch_size_placeholder, learning_rate_placeholder,
@@ -257,9 +258,9 @@ def train(args, sess, dataset, epoch, image_paths_placeholder,
     batch_number = 0
 
     if args.learning_rate > 0.0:
-        lr = args.learning_rate
+        lnrt = args.learning_rate
     else:
-        lr = facenet.get_learning_rate_from_file(
+        lnrt = facenet.get_learning_rate_from_file(
             learning_rate_schedule_file, epoch)
     while batch_number < args.epoch_size:
         # Sample people randomly from the dataset
@@ -284,9 +285,9 @@ def train(args, sess, dataset, epoch, image_paths_placeholder,
                 [embeddings, labels_batch],
                 feed_dict={
                     batch_size_placeholder: batch_size,
-                    learning_rate_placeholder: lr,
+                    learning_rate_placeholder: lnrt,
                     phase_train_placeholder: True,
-                }
+                },
             )
             emb_array[lab, :] = emb
         print('%.3f' % (time.time()-start_time))
@@ -320,7 +321,7 @@ def train(args, sess, dataset, epoch, image_paths_placeholder,
             batch_size = min(nrof_examples-i*args.batch_size, args.batch_size)
             feed_dict = {
                 batch_size_placeholder:     batch_size,
-                learning_rate_placeholder:  lr,
+                learning_rate_placeholder:  lnrt,
                 phase_train_placeholder:    True,
             }
             err, _, step, emb, lab = sess.run(
@@ -367,7 +368,7 @@ def select_triplets(embeddings, nrof_images_per_class,
         for j in range(1, nrof_images):
             a_idx = emb_start_idx + j - 1
             neg_dists_sqr = np.sum(np.square(   # pylint: disable=E1101
-                                   embeddings[a_idx] - embeddings), 1)
+                embeddings[a_idx] - embeddings), 1)
             for pair in range(j, nrof_images):
                 # For every possible positive pair.
                 p_idx = emb_start_idx + pair
@@ -448,8 +449,7 @@ def evaluate(sess, image_paths, embeddings, labels_batch,
              image_paths_placeholder, labels_placeholder,
              batch_size_placeholder, learning_rate_placeholder,
              phase_train_placeholder, enqueue_op, actual_issame, batch_size,
-             nrof_folds, log_dir, step, summary_writer, embedding_size
-):
+             nrof_folds, log_dir, step, summary_writer, embedding_size):
     """ evaluate
     """
     start_time = time.time()
@@ -536,21 +536,21 @@ def save_variables_and_metagraph(
 def get_learning_rate_from_file(filename, epoch):
     """ get learning rate
     """
-    with open(filename, 'r') as f:
-        for line in f.readlines():
+    with open(filename, 'r') as myfile:
+        for line in myfile.readlines():
             line = line.split('#', 1)[0]
             if line:
                 par = line.strip().split(':')
                 e = int(par[0])
-                lr = float(par[1])
+                lnrt = float(par[1])
                 if e <= epoch:
-                    learning_rate = lr
+                    learning_rate = lnrt
                 else:
                     return learning_rate
 
 
 def parse_arguments(argv):
-    """ parse argv
+    """ parse argvget_learning_rate_from_file
     """
     parser = argparse.ArgumentParser()
 
