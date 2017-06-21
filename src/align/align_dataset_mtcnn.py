@@ -25,16 +25,18 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from scipy import misc
-import sys
-import os
 import argparse
+import os
+import random
+import sys
+from time import sleep
+
+from scipy import misc
 import tensorflow as tf
 import numpy as np
 import facenet
 import align.detect_face
-import random
-from time import sleep
+
 
 def main(args):
     """main
@@ -51,18 +53,24 @@ def main(args):
     print('Creating networks and loading parameters')
 
     with tf.Graph().as_default():
-        gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=args.gpu_memory_fraction)
-        sess = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options, log_device_placement=False))
+        gpu_options = tf.GPUOptions(
+            per_process_gpu_memory_fraction=args.gpu_memory_fraction)
+        sess = tf.Session(
+            config=tf.ConfigProto(
+                gpu_options=gpu_options,
+                log_device_placement=False))
         with sess.as_default():
             pnet, rnet, onet = align.detect_face.create_mtcnn(sess, None)
 
-    minsize = 20 # minimum size of face
-    threshold = [ 0.6, 0.7, 0.7 ]  # three steps's threshold
-    factor = 0.709 # scale factor
+    minsize = 20    # minimum size of face
+    threshold = [0.6, 0.7, 0.7]  # three steps's threshold
+    factor = 0.709  # scale factor
 
-    # Add a random key to the filename to allow alignment using multiple processes
-    random_key = np.random.randint(0, high=99999)
-    bounding_boxes_filename = os.path.join(output_dir, 'bounding_boxes_%05d.txt' % random_key)
+    # Add a random key to the filename to allow alignment
+    # using multiple processes
+    random_key = np.random.randint(0, high=99999)   # pylint: disable=E1101
+    bounding_boxes_filename = os.path.join(
+        output_dir, 'bounding_boxes_%05d.txt' % random_key)
 
     with open(bounding_boxes_filename, "w") as text_file:
         nrof_images_total = 0
