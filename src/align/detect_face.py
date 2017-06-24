@@ -23,26 +23,33 @@ at https://github.com/kpzhang93/MTCNN_face_detection_alignment
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+# pylint: disable=E1101
+
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
-from six import string_types, iteritems
 
+import os
+
+from six import string_types, iteritems
 import numpy as np
 import tensorflow as tf
 # from math import floor
 import cv2
-import os
 
 
 def layer(op):
-    '''Decorator for composable network layers.'''
+    """
+    Decorator for composable network layers.
+    """
 
     def layer_decorated(self, *args, **kwargs):
+        """ layer decorated
+        """
         # Automatically set a name if not provided.
         name = kwargs.setdefault('name', self.get_unique_name(op.__name__))
         # Figure out the layer inputs.
-        if len(self.terminals) == 0:
+        if not self.terminals:
             raise RuntimeError('No input variables found for layer %s.' % name)
         elif len(self.terminals) == 1:
             layer_input = self.terminals[0]
@@ -61,6 +68,8 @@ def layer(op):
 
 
 class Network(object):
+    """ Network
+    """
 
     def __init__(self, inputs, trainable=True):
         # The input nodes for this network
@@ -102,7 +111,7 @@ class Network(object):
         '''Set the input(s) for the next operation by replacing the terminal nodes.
         The arguments can be either layer names or the actual layers.
         '''
-        assert len(args) != 0
+        assert args
         self.terminals = []
         for fed_layer in args:
             if isinstance(fed_layer, string_types):
@@ -145,6 +154,8 @@ class Network(object):
              padding='SAME',
              group=1,
              biased=True):
+        """ conv
+        """
         # Verify that the padding is acceptable
         self.validate_padding(padding)
         # Get the number of channels in the input
@@ -155,6 +166,8 @@ class Network(object):
 
         # Convolution for a given input and kernel
         def convolve(i, k):
+            """ convolve
+            """
             return tf.nn.conv2d(i, k, [1, s_h, s_w, 1], padding=padding)
 
         with tf.variable_scope(name) as scope:
@@ -174,14 +187,18 @@ class Network(object):
 
     @layer
     def prelu(self, inp, name):
+        """ prelu
+        """
         with tf.variable_scope(name):
             i = int(inp.get_shape()[-1])
             alpha = self.make_var('alpha', shape=(i,))
-            output = tf.nn.relu(inp) + tf.multiply(alpha, -tf.nn.relu(-inp))
+            output = tf.nn.relu(inp) + tf.multiply(alpha, 0 - tf.nn.relu(-inp))
         return output
 
     @layer
     def max_pool(self, inp, k_h, k_w, s_h, s_w, name, padding='SAME'):
+        """ max pool
+        """
         self.validate_padding(padding)
         return tf.nn.max_pool(inp,
                               ksize=[1, k_h, k_w, 1],
@@ -191,6 +208,8 @@ class Network(object):
 
     @layer
     def fc(self, inp, num_out, name, relu=True):
+        """ fc
+        """
         with tf.variable_scope(name):
             input_shape = inp.get_shape()
             if input_shape.ndims == 4:
@@ -215,6 +234,8 @@ class Network(object):
     """
     @layer
     def softmax(self, target, axis, name=None):
+        """ softmax
+        """
         max_axis = tf.reduce_max(target, axis, keep_dims=True)
         target_exp = tf.exp(target-max_axis)
         normalize = tf.reduce_sum(target_exp, axis, keep_dims=True)
@@ -223,69 +244,77 @@ class Network(object):
 
 
 class PNet(Network):
+    """ PNet
+    """
     def setup(self):
         (self.feed('data')  # pylint: disable=no-value-for-parameter, no-member
-            .conv(3, 3, 10, 1, 1, padding='VALID', relu=False, name='conv1')
-            .prelu(name='PReLU1')
-            .max_pool(2, 2, 2, 2, name='pool1')
-            .conv(3, 3, 16, 1, 1, padding='VALID', relu=False, name='conv2')
-            .prelu(name='PReLU2')
-            .conv(3, 3, 32, 1, 1, padding='VALID', relu=False, name='conv3')
-            .prelu(name='PReLU3')
-            .conv(1, 1, 2, 1, 1, relu=False, name='conv4-1')
-            .softmax(3, name='prob1'))
+         .conv(3, 3, 10, 1, 1, padding='VALID', relu=False, name='conv1')
+         .prelu(name='PReLU1')
+         .max_pool(2, 2, 2, 2, name='pool1')
+         .conv(3, 3, 16, 1, 1, padding='VALID', relu=False, name='conv2')
+         .prelu(name='PReLU2')
+         .conv(3, 3, 32, 1, 1, padding='VALID', relu=False, name='conv3')
+         .prelu(name='PReLU3')
+         .conv(1, 1, 2, 1, 1, relu=False, name='conv4-1')
+         .softmax(3, name='prob1'))
 
         (self.feed('PReLU3')  # pylint: disable=no-value-for-parameter
-            .conv(1, 1, 4, 1, 1, relu=False, name='conv4-2'))
+         .conv(1, 1, 4, 1, 1, relu=False, name='conv4-2'))
 
 
 class RNet(Network):
+    """ R Net
+    """
     def setup(self):
         (self.feed('data')  # pylint: disable=no-value-for-parameter, no-member
-            .conv(3, 3, 28, 1, 1, padding='VALID', relu=False, name='conv1')
-            .prelu(name='prelu1')
-            .max_pool(3, 3, 2, 2, name='pool1')
-            .conv(3, 3, 48, 1, 1, padding='VALID', relu=False, name='conv2')
-            .prelu(name='prelu2')
-            .max_pool(3, 3, 2, 2, padding='VALID', name='pool2')
-            .conv(2, 2, 64, 1, 1, padding='VALID', relu=False, name='conv3')
-            .prelu(name='prelu3')
-            .fc(128, relu=False, name='conv4')
-            .prelu(name='prelu4')
-            .fc(2, relu=False, name='conv5-1')
-            .softmax(1, name='prob1'))
+         .conv(3, 3, 28, 1, 1, padding='VALID', relu=False, name='conv1')
+         .prelu(name='prelu1')
+         .max_pool(3, 3, 2, 2, name='pool1')
+         .conv(3, 3, 48, 1, 1, padding='VALID', relu=False, name='conv2')
+         .prelu(name='prelu2')
+         .max_pool(3, 3, 2, 2, padding='VALID', name='pool2')
+         .conv(2, 2, 64, 1, 1, padding='VALID', relu=False, name='conv3')
+         .prelu(name='prelu3')
+         .fc(128, relu=False, name='conv4')
+         .prelu(name='prelu4')
+         .fc(2, relu=False, name='conv5-1')
+         .softmax(1, name='prob1'))
 
         (self.feed('prelu4')  # pylint: disable=no-value-for-parameter
-             .fc(4, relu=False, name='conv5-2'))
+         .fc(4, relu=False, name='conv5-2'))
 
 
 class ONet(Network):
+    """ O Net
+    """
     def setup(self):
         (self.feed('data')  # pylint: disable=no-value-for-parameter, no-member
-             .conv(3, 3, 32, 1, 1, padding='VALID', relu=False, name='conv1')
-             .prelu(name='prelu1')
-             .max_pool(3, 3, 2, 2, name='pool1')
-             .conv(3, 3, 64, 1, 1, padding='VALID', relu=False, name='conv2')
-             .prelu(name='prelu2')
-             .max_pool(3, 3, 2, 2, padding='VALID', name='pool2')
-             .conv(3, 3, 64, 1, 1, padding='VALID', relu=False, name='conv3')
-             .prelu(name='prelu3')
-             .max_pool(2, 2, 2, 2, name='pool3')
-             .conv(2, 2, 128, 1, 1, padding='VALID', relu=False, name='conv4')
-             .prelu(name='prelu4')
-             .fc(256, relu=False, name='conv5')
-             .prelu(name='prelu5')
-             .fc(2, relu=False, name='conv6-1')
-             .softmax(1, name='prob1'))
+         .conv(3, 3, 32, 1, 1, padding='VALID', relu=False, name='conv1')
+         .prelu(name='prelu1')
+         .max_pool(3, 3, 2, 2, name='pool1')
+         .conv(3, 3, 64, 1, 1, padding='VALID', relu=False, name='conv2')
+         .prelu(name='prelu2')
+         .max_pool(3, 3, 2, 2, padding='VALID', name='pool2')
+         .conv(3, 3, 64, 1, 1, padding='VALID', relu=False, name='conv3')
+         .prelu(name='prelu3')
+         .max_pool(2, 2, 2, 2, name='pool3')
+         .conv(2, 2, 128, 1, 1, padding='VALID', relu=False, name='conv4')
+         .prelu(name='prelu4')
+         .fc(256, relu=False, name='conv5')
+         .prelu(name='prelu5')
+         .fc(2, relu=False, name='conv6-1')
+         .softmax(1, name='prob1'))
 
         (self.feed('prelu5')  # pylint: disable=no-value-for-parameter
-             .fc(4, relu=False, name='conv6-2'))
+         .fc(4, relu=False, name='conv6-2'))
 
         (self.feed('prelu5')  # pylint: disable=no-value-for-parameter
-             .fc(10, relu=False, name='conv6-3'))
+         .fc(10, relu=False, name='conv6-3'))
 
 
 def create_mtcnn(sess, model_path):
+    """ create mtcnn
+    """
     if not model_path:
         model_path, _ = os.path.split(os.path.realpath(__file__))
 
@@ -303,16 +332,22 @@ def create_mtcnn(sess, model_path):
         onet.load(os.path.join(model_path, 'det3.npy'), sess)
 
     def pnet_fun(img):
+        """ P Net Fun
+        """
         sess.run(
             ('pnet/conv4-2/BiasAdd:0', 'pnet/prob1:0'),
             feed_dict={'pnet/input:0': img})
 
     def rnet_fun(img):
+        """ R Net Fun
+        """
         sess.run(
             ('rnet/conv5-2/conv5-2:0', 'rnet/prob1:0'),
             feed_dict={'rnet/input:0': img})
 
     def onet_fun(img):
+        """O Net Fun
+        """
         sess.run(
             ('onet/conv6-2/conv6-2:0', 'onet/conv6-3/conv6-3:0',
              'onet/prob1:0'),
@@ -322,12 +357,14 @@ def create_mtcnn(sess, model_path):
 
 
 def detect_face(img, minsize, pnet, rnet, onet, threshold, factor):
-    # im: input image
-    # minsize: minimum of faces' size
-    # pnet, rnet, onet: caffemodel
-    # threshold: threshold=[th1 th2 th3], th1-3 are three steps's threshold
-    # fastresize: resize img from last scale (using in high-resolution images)
-    # if fastresize==true
+    """
+    im: input image
+    minsize: minimum of faces' size
+    pnet, rnet, onet: caffemodel
+    threshold: threshold=[th1 th2 th3], th1-3 are three steps's threshold
+    fastresize: resize img from last scale (using in high-resolution images)
+    if fastresize==true
+    """
     factor_count = 0
     total_boxes = np.empty((0, 9))
     points = []
@@ -344,8 +381,8 @@ def detect_face(img, minsize, pnet, rnet, onet, threshold, factor):
         factor_count += 1
 
     # first stage
-    for j in range(len(scales)):
-        scale = scales[j]
+    for scale in scales:
+        # scale = scales[j]
         hs = int(np.ceil(h*scale))
         ws = int(np.ceil(w*scale))
         im_data = imresample(img, (hs, ws))
@@ -540,16 +577,16 @@ def bulk_detect_face(
                 out1[:, :, 1].copy(),
                 out0[:, :, :].copy(),
                 scale,
-                threshold[0]
+                threshold[0],
             )
 
             # inter-scale nms
             pick = nms(boxes.copy(), 0.5, 'Union')
             if boxes.size > 0 and pick.size > 0:
                 boxes = boxes[pick, :]
-                images_with_boxes[image_index]['total_boxes'] = np.append(images_with_boxes[image_index]['total_boxes'],
-                                                                          boxes,
-                                                                          axis=0)
+                images_with_boxes[image_index]['total_boxes'] = \
+                    np.append(images_with_boxes[image_index]['total_boxes'],
+                              boxes, axis=0)
 
     for index, image_obj in enumerate(images_with_boxes):
         numbox = image_obj['total_boxes'].shape[0]
@@ -558,16 +595,25 @@ def bulk_detect_face(
             w = images[index].shape[1]
             pick = nms(image_obj['total_boxes'].copy(), 0.7, 'Union')
             image_obj['total_boxes'] = image_obj['total_boxes'][pick, :]
-            regw = image_obj['total_boxes'][:, 2] - image_obj['total_boxes'][:, 0]
-            regh = image_obj['total_boxes'][:, 3] - image_obj['total_boxes'][:, 1]
-            qq1 = image_obj['total_boxes'][:, 0] + image_obj['total_boxes'][:, 5] * regw
-            qq2 = image_obj['total_boxes'][:, 1] + image_obj['total_boxes'][:, 6] * regh
-            qq3 = image_obj['total_boxes'][:, 2] + image_obj['total_boxes'][:, 7] * regw
-            qq4 = image_obj['total_boxes'][:, 3] + image_obj['total_boxes'][:, 8] * regh
-            image_obj['total_boxes'] = np.transpose(np.vstack([qq1, qq2, qq3, qq4, image_obj['total_boxes'][:, 4]]))
+            regw = image_obj['total_boxes'][:, 2] \
+                - image_obj['total_boxes'][:, 0]
+            regh = image_obj['total_boxes'][:, 3] \
+                - image_obj['total_boxes'][:, 1]
+            qq1 = image_obj['total_boxes'][:, 0] \
+                + image_obj['total_boxes'][:, 5] * regw
+            qq2 = image_obj['total_boxes'][:, 1] \
+                + image_obj['total_boxes'][:, 6] * regh
+            qq3 = image_obj['total_boxes'][:, 2] \
+                + image_obj['total_boxes'][:, 7] * regw
+            qq4 = image_obj['total_boxes'][:, 3] \
+                + image_obj['total_boxes'][:, 8] * regh
+            image_obj['total_boxes'] = np.transpose(np.vstack(
+                [qq1, qq2, qq3, qq4, image_obj['total_boxes'][:, 4]]))
             image_obj['total_boxes'] = rerec(image_obj['total_boxes'].copy())
-            image_obj['total_boxes'][:, 0:4] = np.fix(image_obj['total_boxes'][:, 0:4]).astype(np.int32)
-            dy, edy, dx, edx, y, ey, x, ex, tmpw, tmph = pad(image_obj['total_boxes'].copy(), w, h)
+            image_obj['total_boxes'][:, 0:4] = np.fix(
+                image_obj['total_boxes'][:, 0:4]).astype(np.int32)
+            dy, edy, dx, edx, y, ey, x, ex, tmpw, tmph = \
+                pad(image_obj['total_boxes'].copy(), w, h)
 
             numbox = image_obj['total_boxes'].shape[0]
             tempimg = np.zeros((24, 24, 3, numbox))
@@ -575,8 +621,12 @@ def bulk_detect_face(
             if numbox > 0:
                 for k in range(0, numbox):
                     tmp = np.zeros((int(tmph[k]), int(tmpw[k]), 3))
-                    tmp[dy[k] - 1:edy[k], dx[k] - 1:edx[k], :] = images[index][y[k] - 1:ey[k], x[k] - 1:ex[k], :]
-                    if tmp.shape[0] > 0 and tmp.shape[1] > 0 or tmp.shape[0] == 0 and tmp.shape[1] == 0:
+                    tmp[dy[k] - 1:edy[k], dx[k] - 1:edx[k], :] = \
+                        images[index][y[k] - 1:ey[k], x[k] - 1:ex[k], :]
+                    if tmp.shape[0] > 0 \
+                            and tmp.shape[1] > 0 \
+                            or tmp.shape[0] == 0 \
+                            and tmp.shape[1] == 0:
                         tempimg[:, :, :, k] = imresample(tmp, (24, 24))
                     else:
                         return np.empty()
@@ -591,7 +641,8 @@ def bulk_detect_face(
     bulk_rnet_input = np.empty((0, 24, 24, 3))
     for index, image_obj in enumerate(images_with_boxes):
         if 'rnet_input' in image_obj:
-            bulk_rnet_input = np.append(bulk_rnet_input, image_obj['rnet_input'], axis=0)
+            bulk_rnet_input = np.append(
+                bulk_rnet_input, image_obj['rnet_input'], axis=0)
 
     out = rnet(bulk_rnet_input)
     out0 = np.transpose(out[0])
@@ -608,8 +659,9 @@ def bulk_detect_face(
         out0_per_image = out0[:, i:i + rnet_input_count]
 
         ipass = np.where(score_per_image > threshold[1])
-        image_obj['total_boxes'] = np.hstack([image_obj['total_boxes'][ipass[0], 0:4].copy(),
-                                              np.expand_dims(score_per_image[ipass].copy(), 1)])
+        image_obj['total_boxes'] = np.hstack([
+            image_obj['total_boxes'][ipass[0], 0:4].copy(),
+            np.expand_dims(score_per_image[ipass].copy(), 1)])
 
         mv = out0_per_image[:, ipass[0]]
 
@@ -618,20 +670,27 @@ def bulk_detect_face(
             w = images[index].shape[1]
             pick = nms(image_obj['total_boxes'], 0.7, 'Union')
             image_obj['total_boxes'] = image_obj['total_boxes'][pick, :]
-            image_obj['total_boxes'] = bbreg(image_obj['total_boxes'].copy(), np.transpose(mv[:, pick]))
+            image_obj['total_boxes'] = bbreg(image_obj['total_boxes'].copy(),
+                                             np.transpose(mv[:, pick]))
             image_obj['total_boxes'] = rerec(image_obj['total_boxes'].copy())
 
             numbox = image_obj['total_boxes'].shape[0]
 
             if numbox > 0:
                 tempimg = np.zeros((48, 48, 3, numbox))
-                image_obj['total_boxes'] = np.fix(image_obj['total_boxes']).astype(np.int32)
-                dy, edy, dx, edx, y, ey, x, ex, tmpw, tmph = pad(image_obj['total_boxes'].copy(), w, h)
+                image_obj['total_boxes'] = \
+                    np.fix(image_obj['total_boxes']).astype(np.int32)
+                dy, edy, dx, edx, y, ey, x, ex, tmpw, tmph = \
+                    pad(image_obj['total_boxes'].copy(), w, h)
 
                 for k in range(0, numbox):
                     tmp = np.zeros((int(tmph[k]), int(tmpw[k]), 3))
-                    tmp[dy[k] - 1:edy[k], dx[k] - 1:edx[k], :] = images[index][y[k] - 1:ey[k], x[k] - 1:ex[k], :]
-                    if tmp.shape[0] > 0 and tmp.shape[1] > 0 or tmp.shape[0] == 0 and tmp.shape[1] == 0:
+                    tmp[dy[k] - 1:edy[k], dx[k] - 1:edx[k], :] = \
+                        images[index][y[k] - 1:ey[k], x[k] - 1:ex[k], :]
+                    if tmp.shape[0] > 0 \
+                            and tmp.shape[1] > 0 \
+                            or tmp.shape[0] == 0 \
+                            and tmp.shape[1] == 0:
                         tempimg[:, :, :, k] = imresample(tmp, (48, 48))
                     else:
                         return np.empty()
@@ -647,7 +706,8 @@ def bulk_detect_face(
     bulk_onet_input = np.empty((0, 48, 48, 3))
     for index, image_obj in enumerate(images_with_boxes):
         if 'onet_input' in image_obj:
-            bulk_onet_input = np.append(bulk_onet_input, image_obj['onet_input'], axis=0)
+            bulk_onet_input = np.append(
+                bulk_onet_input, image_obj['onet_input'], axis=0)
 
     out = onet(bulk_onet_input)
 
@@ -673,19 +733,25 @@ def bulk_detect_face(
         ipass = np.where(score_per_image > threshold[2])
         points_per_image = points_per_image[:, ipass[0]]
 
-        image_obj['total_boxes'] = np.hstack([image_obj['total_boxes'][ipass[0], 0:4].copy(),
-                                              np.expand_dims(score_per_image[ipass].copy(), 1)])
+        image_obj['total_boxes'] = np.hstack([
+            image_obj['total_boxes'][ipass[0], 0:4].copy(),
+            np.expand_dims(score_per_image[ipass].copy(), 1)])
         mv = out0_per_image[:, ipass[0]]
 
         w = image_obj['total_boxes'][:, 2] - image_obj['total_boxes'][:, 0] + 1
         h = image_obj['total_boxes'][:, 3] - image_obj['total_boxes'][:, 1] + 1
-        points_per_image[0:5, :] = np.tile(w, (5, 1)) * points_per_image[0:5, :] + np.tile(
-            image_obj['total_boxes'][:, 0], (5, 1)) - 1
-        points_per_image[5:10, :] = np.tile(h, (5, 1)) * points_per_image[5:10, :] + np.tile(
-            image_obj['total_boxes'][:, 1], (5, 1)) - 1
+        points_per_image[0:5, :] = \
+            np.tile(w, (5, 1)) * points_per_image[0:5, :] \
+            + np.tile(image_obj['total_boxes'][:, 0], (5, 1)) \
+            - 1
+        points_per_image[5:10, :] = \
+            np.tile(h, (5, 1)) * points_per_image[5:10, :] \
+            + np.tile(image_obj['total_boxes'][:, 1], (5, 1)) \
+            - 1
 
         if image_obj['total_boxes'].shape[0] > 0:
-            image_obj['total_boxes'] = bbreg(image_obj['total_boxes'].copy(), np.transpose(mv))
+            image_obj['total_boxes'] = bbreg(
+                image_obj['total_boxes'].copy(), np.transpose(mv))
             pick = nms(image_obj['total_boxes'].copy(), 0.7, 'Min')
             image_obj['total_boxes'] = image_obj['total_boxes'][pick, :]
             points_per_image = points_per_image[:, pick]
@@ -700,44 +766,48 @@ def bulk_detect_face(
 
 
 # function [boundingbox] = bbreg(boundingbox,reg)
-def bbreg(boundingbox,reg):
-    # calibrate bounding boxes
-    if reg.shape[1]==1:
+def bbreg(boundingbox, reg):
+    """ calibrate bounding boxes
+    """
+    if reg.shape[1] == 1:
         reg = np.reshape(reg, (reg.shape[2], reg.shape[3]))
 
-    w = boundingbox[:,2]-boundingbox[:,0]+1
-    h = boundingbox[:,3]-boundingbox[:,1]+1
-    b1 = boundingbox[:,0]+reg[:,0]*w
-    b2 = boundingbox[:,1]+reg[:,1]*h
-    b3 = boundingbox[:,2]+reg[:,2]*w
-    b4 = boundingbox[:,3]+reg[:,3]*h
-    boundingbox[:,0:4] = np.transpose(np.vstack([b1, b2, b3, b4 ]))
+    w = boundingbox[:, 2] - boundingbox[:, 0] + 1
+    h = boundingbox[:, 3] - boundingbox[:, 1] + 1
+    b1 = boundingbox[:, 0] + reg[:, 0] * w
+    b2 = boundingbox[:, 1] + reg[:, 1] * h
+    b3 = boundingbox[:, 2] + reg[:, 2] * w
+    b4 = boundingbox[:, 3] + reg[:, 3] * h
+    boundingbox[:, 0:4] = np.transpose(
+        np.vstack([b1, b2, b3, b4]))
     return boundingbox
+
 
 def generateBoundingBox(imap, reg, scale, t):
     # use heatmap to generate bounding boxes
-    stride=2
-    cellsize=12
+    stride = 2
+    cellsize = 12
 
     imap = np.transpose(imap)
-    dx1 = np.transpose(reg[:,:,0])
-    dy1 = np.transpose(reg[:,:,1])
-    dx2 = np.transpose(reg[:,:,2])
-    dy2 = np.transpose(reg[:,:,3])
+    dx1 = np.transpose(reg[:, :, 0])
+    dy1 = np.transpose(reg[:, :, 1])
+    dx2 = np.transpose(reg[:, :, 2])
+    dy2 = np.transpose(reg[:, :, 3])
     y, x = np.where(imap >= t)
-    if y.shape[0]==1:
+    if y.shape[0] == 1:
         dx1 = np.flipud(dx1)
         dy1 = np.flipud(dy1)
         dx2 = np.flipud(dx2)
         dy2 = np.flipud(dy2)
-    score = imap[(y,x)]
-    reg = np.transpose(np.vstack([ dx1[(y,x)], dy1[(y,x)], dx2[(y,x)], dy2[(y,x)] ]))
-    if reg.size==0:
-        reg = np.empty((0,3))
-    bb = np.transpose(np.vstack([y,x]))
+    score = imap[(y, x)]
+    reg = np.transpose(
+        np.vstack([dx1[(y, x)], dy1[(y, x)], dx2[(y, x)], dy2[(y, x)]]))
+    if reg.size == 0:
+        reg = np.empty((0, 3))
+    bb = np.transpose(np.vstack([y, x]))
     q1 = np.fix((stride*bb+1)/scale)
     q2 = np.fix((stride*bb+cellsize-1+1)/scale)
-    boundingbox = np.hstack([q1, q2, np.expand_dims(score,1), reg])
+    boundingbox = np.hstack([q1, q2, np.expand_dims(score, 1), reg])
     return boundingbox, reg
 
 
@@ -760,6 +830,7 @@ def nms(boxes, threshold, method):
         pick[counter] = i
         counter += 1
         idx = I[0:-1]
+        # pylint: disable=E1101
         xx1 = np.maximum(x1[i], x1[idx])
         yy1 = np.maximum(y1[i], y1[idx])
         xx2 = np.minimum(x2[i], x2[idx])
@@ -803,28 +874,35 @@ def pad(total_boxes, w, h):
     ey[tmp] = h
 
     tmp = np.where(x < 1)
-    dx.flat[tmp] = np.expand_dims(2-x[tmp],1)
+    dx.flat[tmp] = np.expand_dims(2-x[tmp], 1)
     x[tmp] = 1
 
-    tmp = np.where(y<1)
-    dy.flat[tmp] = np.expand_dims(2-y[tmp],1)
+    tmp = np.where(y < 1)
+    dy.flat[tmp] = np.expand_dims(2-y[tmp], 1)
     y[tmp] = 1
 
     return dy, edy, dx, edx, y, ey, x, ex, tmpw, tmph
 
+
 # function [bboxA] = rerec(bboxA)
 def rerec(bboxA):
-    # convert bboxA to square
-    h = bboxA[:,3]-bboxA[:,1]
-    w = bboxA[:,2]-bboxA[:,0]
-    l = np.maximum(w, h)
-    bboxA[:,0] = bboxA[:,0]+w*0.5-l*0.5
-    bboxA[:,1] = bboxA[:,1]+h*0.5-l*0.5
-    bboxA[:,2:4] = bboxA[:,0:2] + np.transpose(np.tile(l,(2,1)))
+    """ convert bboxA to square
+    """
+    h = bboxA[:, 3]-bboxA[:, 1]
+    w = bboxA[:, 2]-bboxA[:, 0]
+    l = np.maximum(w, h)    # pylint: disable=E1101
+    bboxA[:, 0] = bboxA[:, 0]+w*0.5-l*0.5
+    bboxA[:, 1] = bboxA[:, 1]+h*0.5-l*0.5
+    bboxA[:, 2:4] = bboxA[:, 0:2] + np.transpose(np.tile(l, (2, 1)))
     return bboxA
 
+
 def imresample(img, sz):
-    im_data = cv2.resize(img, (sz[1], sz[0]), interpolation=cv2.INTER_AREA) #@UndefinedVariable
+    """ image resample
+    """
+    # @UndefinedVariable
+    # pylint: disable=E1101
+    im_data = cv2.resize(img, (sz[1], sz[0]), interpolation=cv2.INTER_AREA)
     return im_data
 
     # This method is kept for debugging purpose
@@ -837,6 +915,6 @@ def imresample(img, sz):
 #     for a1 in range(0,hs):
 #         for a2 in range(0,ws):
 #             for a3 in range(0,3):
-#                 im_data[a1,a2,a3] = img[int(floor(a1*dy)),int(floor(a2*dx)),a3]
+#                 im_data[a1,a2,a3] = img[int(floor(a1*dy)),
+#                                         int(floor(a2*dx)),a3]
 #     return im_data
-
