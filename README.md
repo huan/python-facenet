@@ -56,4 +56,6 @@ for N in {1..4}; do python src/align/align_dataset_mtcnn.py /facenet/datasets/lf
 
 python src/train_tripletloss.py --logs_base_dir /facenet/logs/facenet/ --models_base_dir /facenet/models/facenet/ --data_dir /facenet/datasets/lfw/lfw_maxpy_mtcnnpy_182/ --image_size 160 --model_def models.inception_resnet_v1 --lfw_dir /facenet/datasets/lfw/lfw_mtcnnpy_160/ --optimizer RMSPROP --learning_rate 0.01 --weight_decay 1e-4 --max_nrof_epochs 500 --gpu_memory_fraction 0.5
 
-python src/validate_on_lfw.py /facenet/datasets/lfw/lfw_mtcnnpy_160 /facenet/models/facenet/20170512-110547
+python src/validate_on_lfw.py \
+    /datasets/lfw/lfw_mtcnnpy_160 \
+    ./models/facenet/20170512-110547
