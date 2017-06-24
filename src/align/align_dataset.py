@@ -1,19 +1,20 @@
-"""Performs face alignment and stores face thumbnails in the output directory."""
+"""Performs face alignment and stores face thumbnails in the output directory.
+"""
 
 # MIT License
-# 
+#
 # Copyright (c) 2016 David Sandberg
-# 
+#
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
 # in the Software without restriction, including without limitation the rights
 # to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 # copies of the Software, and to permit persons to whom the Software is
 # furnished to do so, subject to the following conditions:
-# 
+#
 # The above copyright notice and this permission notice shall be included in all
 # copies or substantial portions of the Software.
-# 
+#
 # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -26,22 +27,25 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from scipy import misc
 import sys
 import os
 import argparse
 import random
+
+from scipy import misc
 import align_dlib
 import facenet
 
 def main(args):
+    """ main
+    """
     align = align_dlib.AlignDlib(os.path.expanduser(args.dlib_face_predictor))
     landmarkIndices = align_dlib.AlignDlib.OUTER_EYES_AND_NOSE
     output_dir = os.path.expanduser(args.output_dir)
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
     # Store some git revision info in a text file in the log directory
-    src_path,_ = os.path.split(os.path.realpath(__file__))
+    src_path, _ = os.path.split(os.path.realpath(__file__))
     facenet.store_revision_info(src_path, output_dir, ' '.join(sys.argv))
     dataset = facenet.get_dataset(args.input_dir)
     random.shuffle(dataset)
@@ -74,7 +78,7 @@ def main(args):
                         sz2 = args.image_size/2
                         aligned = scaled[(sz1-sz2):(sz1+sz2),(sz1-sz2):(sz1+sz2),:]
                     else:
-                        aligned = align.align(args.image_size, img, landmarkIndices=landmarkIndices, 
+                        aligned = align.align(args.image_size, img, landmarkIndices=landmarkIndices,
                                               skipMulti=False, scale=scale)
                     if aligned is not None:
                         print(image_path)
@@ -83,7 +87,7 @@ def main(args):
                     elif args.prealigned_dir:
                         # Face detection failed. Use center crop from pre-aligned dataset
                         class_name = os.path.split(output_class_dir)[1]
-                        image_path_without_ext = os.path.join(os.path.expanduser(args.prealigned_dir), 
+                        image_path_without_ext = os.path.join(os.path.expanduser(args.prealigned_dir),
                                                               class_name, filename)
                         # Find the extension of the image
                         exts = ('jpg', 'png')
@@ -108,15 +112,15 @@ def main(args):
                             misc.imsave(output_filename, cropped)
                     else:
                         print('Unable to align "%s"' % image_path)
-                            
+
     print('Total number of images: %d' % nrof_images_total)
     print('Number of successfully aligned images: %d' % nrof_successfully_aligned)
     print('Number of pre-aligned images: %d' % nrof_prealigned_images)
-            
+
 
 def parse_arguments(argv):
     parser = argparse.ArgumentParser()
-    
+
     parser.add_argument('input_dir', type=str, help='Directory with unaligned images.')
     parser.add_argument('output_dir', type=str, help='Directory with aligned face thumbnails.')
     parser.add_argument('--dlib_face_predictor', type=str,
@@ -125,7 +129,7 @@ def parse_arguments(argv):
         help='Image size (height, width) in pixels.', default=110)
     parser.add_argument('--face_size', type=int,
         help='Size of the face thumbnail (height, width) in pixels.', default=96)
-    parser.add_argument('--use_center_crop', 
+    parser.add_argument('--use_center_crop',
         help='Use the center crop of the original image after scaling the image using prealigned_scale.', action='store_true')
     parser.add_argument('--prealigned_dir', type=str,
         help='Replace image with a pre-aligned version when face detection fails.', default='')

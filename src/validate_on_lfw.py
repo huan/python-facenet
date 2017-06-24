@@ -1,4 +1,4 @@
-#!/usr/bin/env python3.6
+#!/usr/bin/env python3
 """Validate a face recognizer on the "Labeled Faces in the Wild" dataset
 (http://vis-www.cs.umass.edu/lfw/).
 Embeddings are calculated using the pairs from
