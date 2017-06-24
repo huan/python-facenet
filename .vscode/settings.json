@@ -1,6 +1,6 @@
 // Place your settings in this file to overwrite default and user settings.
 {
-      "python.pythonPath": "python3"
+      "python.pythonPath": "python3.6"
     , "python.linting.enabled": true
     , "python.linting.pylintEnabled": true
     , "python.linting.mypyEnabled": true
