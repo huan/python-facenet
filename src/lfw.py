@@ -58,23 +58,24 @@ def get_paths(lfw_dir, pairs, file_ext):
         if len(pair) == 3:
             path0 = os.path.join(
                 lfw_dir, pair[0], pair[0] + '_'
-                + '%04d' % int(pair[1]) + '.' + file_ext
+                + '%04d' % int(pair[1]) + '.' + file_ext,
             )
             path1 = os.path.join(
                 lfw_dir, pair[0], pair[0] + '_'
-                + '%04d' % int(pair[2]) + '.' + file_ext
+                + '%04d' % int(pair[2]) + '.' + file_ext,
             )
             issame = True
         elif len(pair) == 4:
             path0 = os.path.join(
                 lfw_dir, pair[0], pair[0] + '_'
-                + '%04d' % int(pair[1]) + '.' + file_ext
+                + '%04d' % int(pair[1]) + '.' + file_ext,
             )
             path1 = os.path.join(
                 lfw_dir, pair[2], pair[2] + '_'
-                + '%04d' % int(pair[3]) + '.' + file_ext
+                + '%04d' % int(pair[3]) + '.' + file_ext,
             )
             issame = False
+
         if os.path.exists(path0) and os.path.exists(path1):
             # Only add the pair if both paths exist
             path_list += (path0, path1)
@@ -91,8 +92,8 @@ def read_pairs(pairs_filename):
     """read pairs
     """
     pairs = []
-    with open(pairs_filename, 'r') as myfile:
-        for line in myfile.readlines()[1:]:
+    with open(pairs_filename, 'r') as f:
+        for line in f.readlines()[1:]:
             pair = line.strip().split()
             pairs.append(pair)
     return np.array(pairs)
