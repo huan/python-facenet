@@ -28,7 +28,7 @@ flake8:
 
 .PHONY: mypy
 mypy:
-	mypy $(SOURCE_GLOB)
+	MYPYPATH=stubs/ mypy $(SOURCE_GLOB)
 
 .PHONY: test
 test: check-version lint
