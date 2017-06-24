@@ -1,4 +1,6 @@
-"""Performs face alignment and stores face thumbnails in the output directory."""
+#!/usr/bin/env python3
+"""Performs face alignment and stores face thumbnails in the output directory.
+"""
 # MIT License
 #
 # Copyright (c) 2016 David Sandberg
