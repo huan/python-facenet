@@ -4,6 +4,11 @@
     , "python.linting.enabled": true
     , "python.linting.pylintEnabled": true
     , "python.linting.mypyEnabled": true
+    , "python.linting.mypyArgs": [
+          "--ignore-missing-imports"
+        , "--follow-imports=silent"
+        , "--python-version=3.6"
+    ]
     , "python.linting.pep8Enabled": false
     , "python.linting.flake8Enabled": true
     , "files.exclude": {
