@@ -43,3 +43,5 @@ test: check-version lint
 check-version:
 	./util/check_version.py
 
+code:
+	code src/	# vscode need to use src as root dir

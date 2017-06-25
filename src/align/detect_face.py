@@ -334,21 +334,21 @@ def create_mtcnn(sess, model_path):
     def pnet_fun(img):
         """ P Net Fun
         """
-        sess.run(
+        return sess.run(
             ('pnet/conv4-2/BiasAdd:0', 'pnet/prob1:0'),
             feed_dict={'pnet/input:0': img})
 
     def rnet_fun(img):
         """ R Net Fun
         """
-        sess.run(
+        return sess.run(
             ('rnet/conv5-2/conv5-2:0', 'rnet/prob1:0'),
             feed_dict={'rnet/input:0': img})
 
     def onet_fun(img):
         """O Net Fun
         """
-        sess.run(
+        return sess.run(
             ('onet/conv6-2/conv6-2:0', 'onet/conv6-3/conv6-3:0',
              'onet/prob1:0'),
             feed_dict={'onet/input:0': img})
@@ -358,7 +358,7 @@ def create_mtcnn(sess, model_path):
 
 def detect_face(img, minsize, pnet, rnet, onet, threshold, factor):
     """
-    im: input image
+    img: input image
     minsize: minimum of faces' size
     pnet, rnet, onet: caffemodel
     threshold: threshold=[th1 th2 th3], th1-3 are three steps's threshold
@@ -380,7 +380,9 @@ def detect_face(img, minsize, pnet, rnet, onet, threshold, factor):
         minl = minl*factor
         factor_count += 1
 
-    # first stage
+    """
+    first stage
+    """
     for scale in scales:
         # scale = scales[j]
         hs = int(np.ceil(h*scale))
@@ -422,7 +424,8 @@ def detect_face(img, minsize, pnet, rnet, onet, threshold, factor):
 
     numbox = total_boxes.shape[0]
     if numbox > 0:
-        # second stage
+        """ second stage
+        """
         tempimg = np.zeros((24, 24, 3, numbox))
         for k in range(0, numbox):
             tmp = np.zeros((int(tmph[k]), int(tmpw[k]), 3))
@@ -454,7 +457,8 @@ def detect_face(img, minsize, pnet, rnet, onet, threshold, factor):
 
     numbox = total_boxes.shape[0]
     if numbox > 0:
-        # third stage
+        """ third stage
+        """
         total_boxes = np.fix(total_boxes).astype(np.int32)
         dy, edy, dx, edx, y, ey, x, ex, tmpw, tmph = pad(total_boxes.copy(),
                                                          w, h)
@@ -501,11 +505,13 @@ def detect_face(img, minsize, pnet, rnet, onet, threshold, factor):
 def bulk_detect_face(
         images, detection_window_size_ratio, pnet, rnet, onet,
         threshold, factor):
-    # im: input image
-    # minsize: minimum of faces' size
-    # pnet, rnet, onet: caffemodel
-    # threshold: threshold=[th1 th2 th3],
-    # th1-3 are three steps's threshold [0-1]
+    """ builk detect face
+    im: input image
+    minsize: minimum of faces' size
+    pnet, rnet, onet: caffemodel
+    threshold: threshold=[th1 th2 th3],
+    th1-3 are three steps's threshold [0-1]
+    """
 
     all_scales = [None] * len(images)
     images_with_boxes = [None] * len(images)
@@ -784,7 +790,8 @@ def bbreg(boundingbox, reg):
 
 
 def generateBoundingBox(imap, reg, scale, t):
-    # use heatmap to generate bounding boxes
+    """ use heatmap to generate bounding boxes
+    """
     stride = 2
     cellsize = 12
 
