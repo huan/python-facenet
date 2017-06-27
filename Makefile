@@ -28,7 +28,10 @@ flake8:
 
 .PHONY: mypy
 mypy:
-	mypy $(SOURCE_GLOB)
+	MYPYPATH=stubs/ mypy \
+		--disallow-untyped-defs \
+		--python-version=3.6 \
+		$(SOURCE_GLOB)
 
 .PHONY: test
 test: check-version lint
@@ -40,3 +43,5 @@ test: check-version lint
 check-version:
 	./util/check_version.py
 
+code:
+	code src/	# vscode need to use src as root dir

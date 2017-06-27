@@ -96,6 +96,8 @@ def center_loss(features, label, alfa, nrof_classes):
 
 
 def get_image_paths_and_labels(dataset):
+    """ Dateset to Tuple
+    """
     image_paths_flat = []
     labels_flat = []
     for i in range(len(dataset)):
@@ -105,6 +107,8 @@ def get_image_paths_and_labels(dataset):
 
 
 def shuffle_examples(image_paths, labels):
+    """ shuffle example
+    """
     shuffle_list = list(zip(image_paths, labels))
     random.shuffle(shuffle_list)
     image_paths_shuff, labels_shuff = zip(*shuffle_list)
@@ -125,6 +129,8 @@ def read_images_from_disk(input_queue):
 
 
 def random_rotate_image(image):
+    """ random rotate
+    """
     angle = np.random.uniform(low=-10.0, high=10.0)     # pylint: disable=E1101
     return misc.imrotate(image, angle, 'bicubic')
 
@@ -133,7 +139,8 @@ def read_and_augment_data(image_list, label_list, image_size, batch_size,
                           max_nrof_epochs,
                           random_crop, random_flip, random_rotate,
                           nrof_preprocess_threads, shuffle=True):
-
+    """ read and augment data
+    """
     images = ops.convert_to_tensor(image_list, dtype=tf.string)
     labels = ops.convert_to_tensor(label_list, dtype=tf.int32)
 
@@ -278,6 +285,8 @@ def flip(image, random_flip):
 
 
 def to_rgb(img):
+    """ to rgb
+    """
     w, h = img.shape
     ret = np.empty((w, h, 3), dtype=np.uint8)
     ret[:, :, 0] = ret[:, :, 1] = ret[:, :, 2] = img
