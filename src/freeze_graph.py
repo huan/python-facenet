@@ -34,6 +34,7 @@ from tensorflow.python.framework import graph_util
 import tensorflow as tf
 import facenet
 
+
 def main(args):
     """ Docstring for main
     """

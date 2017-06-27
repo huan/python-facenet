@@ -22,7 +22,6 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-# pylint: disable=missing-docstring
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -453,6 +452,8 @@ def get_model_filenames(model_dir):
 
 def calculate_roc(thresholds, embeddings1, embeddings2,
                   actual_issame, nrof_folds=10):
+    """ ROC: Receiver Operating Characteristic
+    """
     assert embeddings1.shape[0] == embeddings2.shape[0]
     assert embeddings1.shape[1] == embeddings2.shape[1]
     nrof_pairs = min(len(actual_issame), embeddings1.shape[0])
@@ -471,24 +472,39 @@ def calculate_roc(thresholds, embeddings1, embeddings2,
 
         # Find the best threshold for the fold
         acc_train = np.zeros((nrof_thresholds))
+
         for threshold_idx, threshold in enumerate(thresholds):
-            _, _, acc_train[threshold_idx] = calculate_accuracy(
-                threshold, dist[train_set], actual_issame[train_set])
+            _, _, acc_train[threshold_idx] = \
+                calculate_accuracy(
+                    threshold,
+                    dist[train_set],
+                    actual_issame[train_set]
+                )
         best_threshold_index = np.argmax(acc_train)
+
         for threshold_idx, threshold in enumerate(thresholds):
             tprs[fold_idx, threshold_idx], fprs[fold_idx, threshold_idx], _ = \
-                calculate_accuracy(threshold, dist[test_set],
-                                   actual_issame[test_set])
+                calculate_accuracy(
+                    threshold,
+                    dist[test_set],
+                    actual_issame[test_set]
+                )
+
         _, _, accuracy[fold_idx] = calculate_accuracy(
             thresholds[best_threshold_index],
-            dist[test_set], actual_issame[test_set])
+            dist[test_set],
+            actual_issame[test_set],
+        )
 
         tpr = np.mean(tprs, 0)
         fpr = np.mean(fprs, 0)
+
     return tpr, fpr, accuracy
 
 
 def calculate_accuracy(threshold, dist, actual_issame):
+    """Accuracy
+    """
     # pylint: disable=E1101
     predict_issame = np.less(dist, threshold)
     tp = np.sum(np.logical_and(predict_issame, actual_issame))
@@ -542,6 +558,10 @@ def calculate_val(thresholds, embeddings1, embeddings2, actual_issame,
 
 
 def calculate_val_far(threshold, dist, actual_issame):
+    """
+    VAL: Validation Rate
+    FAR: False Accept Rate
+    """
     # pylint: disable=E1101
     predict_issame = np.less(dist, threshold)
     true_accept = np.sum(np.logical_and(predict_issame, actual_issame))
@@ -555,7 +575,8 @@ def calculate_val_far(threshold, dist, actual_issame):
 
 
 def store_revision_info(src_path, output_dir, arg_string):
-
+    """for Debug
+    """
     # Get git hash
     gitproc = Popen(['git', 'rev-parse', 'HEAD'], stdout=PIPE, cwd=src_path)
     (stdout, _) = gitproc.communicate()
@@ -575,6 +596,8 @@ def store_revision_info(src_path, output_dir, arg_string):
 
 
 def list_variables(filename):
+    """ for Debug
+    """
     reader = training.NewCheckpointReader(filename)
     variable_map = reader.get_variable_to_shape_map()
     names = sorted(variable_map.keys())

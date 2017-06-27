@@ -47,6 +47,10 @@ Currently, the best performing model is an Inception-Resnet-v1 model trained on 
 The accuracy on LFW for the model [20170512-110547](https://drive.google.com/file/d/0B5MzpY9kBtDVZ2RpVDYwWmxoSUk) is 0.992+-0.003. A description of how to run the test can be found on the page [Validate on LFW](https://github.com/davidsandberg/facenet/wiki/Validate-on-lfw).
 
 
+### References
+
+* [VAL, FAR and Accuracy](https://github.com/davidsandberg/facenet/issues/288)
+
 #### Memo
 
 
