@@ -95,5 +95,6 @@ ENV/
 
 t.*
 t/
+.mypy_cache/
 models/
 logs/

@@ -2,6 +2,7 @@
 https://pythonprogramming.net/loading-video-python-opencv-tutorial/?completed=/loading-images-python-opencv-tutorial/
 """
 import cv2
+from matplotlib import pyplot as plt
 
 
 def demo1():
@@ -9,16 +10,22 @@ def demo1():
     """
     cap = cv2.VideoCapture(0)
 
+    # plt.axis([0, 10, 0, 1])
+    plt.ion()
+
     while True:
         ret, frame = cap.read()
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-
-        cv2.imshow('frame', gray)
-        if not ret or cv2.waitKey(1) & 0xFF == ord('q'):
+        if not ret:
             break
 
+        # gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+
+        # plt.scatter(i, y)
+        plt.imshow(frame)
+        plt.show()
+        plt.pause(0.05)
+
     cap.release()
-    cv2.destroyAllWindows()
 
 
 def demo2():
@@ -39,5 +46,6 @@ def demo2():
     cap.release()
     out.release()
     cv2.destroyAllWindows()
+
 
 demo1()

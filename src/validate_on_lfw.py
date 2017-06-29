@@ -1,10 +1,18 @@
+<<<<<<< HEAD
+=======
 #!/usr/bin/env python3
+>>>>>>> b5634da077f2fa3d7656d8f9ebff7c4126eb2cee
 """Validate a face recognizer on the "Labeled Faces in the Wild" dataset
 (http://vis-www.cs.umass.edu/lfw/).
 Embeddings are calculated using the pairs from
 http://vis-www.cs.umass.edu/lfw/pairs.txt and the ROC curve
+<<<<<<< HEAD
+is calculated and plotted. Both the model metagraph and the model
+parameters need to exist
+=======
 is calculated and plotted. Both the model metagraph and
 the model parameters need to exist
+>>>>>>> b5634da077f2fa3d7656d8f9ebff7c4126eb2cee
 in the same directory, and the metagraph should have the extension '.meta'.
 """
 # MIT License
@@ -48,7 +56,11 @@ from scipy import interpolate
 
 
 def main(args):
+<<<<<<< HEAD
+    """main
+=======
     """ main
+>>>>>>> b5634da077f2fa3d7656d8f9ebff7c4126eb2cee
     """
 
     with tf.Graph().as_default():
@@ -69,6 +81,13 @@ def main(args):
             facenet.load_model(args.model)
 
             # Get input and output tensors
+<<<<<<< HEAD
+            images_placeholder = tf.get_default_graph().get_tensor_by_name("input:0")
+            embeddings = tf.get_default_graph().get_tensor_by_name("embeddings:0")
+            phase_train_placeholder = tf.get_default_graph().get_tensor_by_name("phase_train:0")
+
+            #image_size = images_placeholder.get_shape()[1]  # For some reason this doesn't work for frozen graphs
+=======
             images_placeholder = tf.get_default_graph() \
                 .get_tensor_by_name("input:0")
             embeddings = tf.get_default_graph().get_tensor_by_name(
@@ -78,6 +97,7 @@ def main(args):
 
             # image_size = images_placeholder.get_shape()[1]
             # For some reason this doesn't work for frozen graphs
+>>>>>>> b5634da077f2fa3d7656d8f9ebff7c4126eb2cee
             image_size = args.image_size
             embedding_size = embeddings.get_shape()[1]
 
@@ -91,6 +111,17 @@ def main(args):
                 start_index = i*batch_size
                 end_index = min((i+1)*batch_size, nrof_images)
                 paths_batch = paths[start_index:end_index]
+<<<<<<< HEAD
+                images = facenet.load_data(paths_batch, False, False, image_size)
+                feed_dict = { images_placeholder:images, phase_train_placeholder:False }
+                emb_array[start_index:end_index,:] = sess.run(embeddings, feed_dict=feed_dict)
+
+            tpr, fpr, accuracy, val, val_std, far = lfw.evaluate(
+                emb_array,
+                actual_issame,
+                nrof_folds=args.lfw_nrof_folds
+            )
+=======
                 images = facenet.load_data(
                     paths_batch, False, False, image_size)
                 feed_dict = {
@@ -99,6 +130,7 @@ def main(args):
                 }
                 emb_array[start_index:end_index, :] = sess.run(
                     embeddings, feed_dict=feed_dict)
+>>>>>>> b5634da077f2fa3d7656d8f9ebff7c4126eb2cee
 
             tpr, fpr, accuracy, val, val_std, far = lfw.evaluate(
                 emb_array, actual_issame, nrof_folds=args.lfw_nrof_folds)
@@ -120,6 +152,36 @@ def parse_arguments(argv):
     """
     parser = argparse.ArgumentParser()
 
+<<<<<<< HEAD
+    parser.add_argument(
+        'lfw_dir', type=str,
+        help='Path to the data directory containing '
+        'aligned LFW face patches.')
+    parser.add_argument(
+        '--lfw_batch_size', type=int,
+        help='Number of images to process in a '
+        'batch in the LFW test set.', default=100)
+    parser.add_argument(
+        'model', type=str,
+        help='Could be either a directory containing the meta_file and '
+        'ckpt_file or a model protobuf (.pb) file')
+    parser.add_argument(
+        '--image_size', type=int,
+        help='Image size (height, width) in pixels.',
+        default=160)
+    parser.add_argument(
+        '--lfw_pairs', type=str,
+        help='The file containing the pairs to use for validation.',
+        default='data/pairs.txt')
+    parser.add_argument(
+        '--lfw_file_ext', type=str,
+        help='The file extension for the LFW dataset.',
+        default='png', choices=['jpg', 'png'])
+    parser.add_argument(
+        '--lfw_nrof_folds', type=int,
+        help='Number of folds to use for cross validation. '
+        'Mainly used for testing.', default=10)
+=======
     """ Arguments
     """
     parser.add_argument(
@@ -148,6 +210,7 @@ def parse_arguments(argv):
         '--lfw_nrof_folds', type=int, default=10,
         help='Number of folds to use for cross validation.'
         'Mainly used for testing.')
+>>>>>>> b5634da077f2fa3d7656d8f9ebff7c4126eb2cee
     return parser.parse_args(argv)
 
 
