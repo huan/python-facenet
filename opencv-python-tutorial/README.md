@@ -12,3 +12,9 @@ Sample code and text-based tutorial: https://pythonprogramming.net/loading...
 
 http://pythonprogramming.net
 https://twitter.com/sentdex
+
+# OpenCV-Python Tutorials
+
+http://opencv-python-tutroals.readthedocs.io/en/latest/
+
+This seems is the text version of the above video.

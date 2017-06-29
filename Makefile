@@ -44,4 +44,5 @@ check-version:
 	./util/check_version.py
 
 code:
-	code src/	# vscode need to use src as root dir
+	# code src/	# vscode need to use src as root dir
+	PYTHONPATH=src/ code .
