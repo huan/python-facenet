@@ -2,36 +2,42 @@
 dialog module
 """
 from time import sleep
-from typing import Tuple
+from typing import Tuple, Union
 
 import matplotlib.pyplot as plt
-# from matplotlib.image import AxesImage
 from matplotlib.patches import Rectangle
 
 import numpy as np
 
 Point = Tuple[int, int]
 
-i = 3   # type: int
-i = '3'
 
-
-class Ui(object):
+class Monitor(object):
     """
     dialog
     """
 
-    def __init__(self):
-        self.im = None   # type: AxesImage
-        self.fig, self.ax = plt.subplots()
+    def __init__(self, name: str):
+        plt.ion()
 
-    def show_photo(self, file: str) -> None:
+        self.fig = plt.figure(name)
+        self.ax = self.fig.add_axes([0, 0, 1, 1])
+
+        self.ax.axis('off')
+        self.fig.show()
+
+    def display(self, fileOrArray: Union[str, np.ndarray]) -> None:
         """ show photo
         """
-        img = plt.imread(file)
-        self.im = plt.imshow(img)
+        if isinstance(fileOrArray, str):
+            img = plt.imread(fileOrArray)
+        else:
+            img = fileOrArray
 
-    def draw_rectangle(
+        # self.fig.figimage(img, resize=True)
+        self.ax.imshow(img)
+
+    def rectangle(
             self,
             x: int,
             y: int,
@@ -39,14 +45,12 @@ class Ui(object):
             height: int,
     ) -> None:
         """ draw """
-        # color = np.random.randint(3)
-        # color = color.list()
         rect = Rectangle(
             [x, y],
             width,
             height,
-            linewidth=1,
-            edgecolor='r',
+            linewidth=0.5,
+            edgecolor=np.random.rand(3),
             facecolor='none'
         )
         self.ax.add_patch(rect)
@@ -56,28 +60,14 @@ class Ui(object):
         # self.ax.draw()
         plt.draw()
 
-    def show(self):
-        """ show """
-        self.ax.axis('off')  # clear x- and y-axes
-        plt.show()
-
-    def pause(self, seconds: int) -> None:
-        """ pause """
-        plt.pause(seconds)
+    # def pause(self, seconds: int) -> None:
+    #     """ pause """
+    #     plt.pause(seconds)
 
     def sleep(self, seconds: int) -> None:
         """ sleep """
         sleep(seconds)
 
-    def interactive_mode(self, switch: bool = True) -> None:
-        """ interactive """
-        if switch:
-            plt.ion()
-        else:
-            plt.ioff()
-
-    def huan(self, n: int) -> None:
-        """ test
-        """
-        print('huan%d' % (n))
-
+    def waitforbuttonpress(self) -> None:
+        """ wait for any key """
+        self.fig.waitforbuttonpress()
