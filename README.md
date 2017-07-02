@@ -50,6 +50,8 @@ The accuracy on LFW for the model [20170512-110547](https://drive.google.com/fil
 ### References
 
 * [VAL, FAR and Accuracy](https://github.com/davidsandberg/facenet/issues/288)
+* [NMS——非极大值抑制](http://blog.csdn.net/shuzfan/article/details/52711706)
+* [MTCNN（Multi-task convolutional neural networks）人脸对齐](http://blog.csdn.net/qq_14845119/article/details/52680940)
 
 #### Memo
 
