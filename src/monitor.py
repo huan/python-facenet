@@ -94,6 +94,7 @@ class Monitor(object):
         # self.fig.waitforbuttonpress()
         plt.waitforbuttonpress()
 
-    def plot(*args, **kwargs) -> None:
+    def plot(self, *args, **kwargs) -> None:
         """plot proxy"""
-        plt.plot(*args, **kwargs)
+        self.ax = self.fig.add_subplot(1, 1, 1)
+        self.ax.plot(*args, **kwargs)
