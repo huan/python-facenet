@@ -37,6 +37,11 @@ import numpy as np
 import facenet
 from sklearn.svm import SVC
 
+import matplotlib.pyplot as plt
+plt.ion()
+
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+
 def main(args):
     ''' Main entrypoint '''
 
@@ -48,8 +53,9 @@ def main(args):
 
             if args.use_split_dataset:
                 dataset_tmp = facenet.get_dataset(args.data_dir)
-                train_set, test_set = split_dataset(dataset_tmp, args.min_nrof_images_per_class,
-                                                    args.nrof_train_images_per_class)
+                train_set, test_set = split_dataset(
+                    dataset_tmp, args.min_nrof_images_per_class,
+                    args.nrof_train_images_per_class)
                 if args.mode == 'TRAIN':
                     dataset = train_set
                 elif args.mode == 'CLASSIFY':
@@ -73,9 +79,13 @@ def main(args):
             facenet.load_model(args.model)
 
             # Get input and output tensors
-            images_placeholder = tf.get_default_graph().get_tensor_by_name("input:0")
-            embeddings = tf.get_default_graph().get_tensor_by_name("embeddings:0")
-            phase_train_placeholder = tf.get_default_graph().get_tensor_by_name("phase_train:0")
+            images_placeholder      = tf.get_default_graph() \
+                                        .get_tensor_by_name("input:0")
+            embeddings              = tf.get_default_graph() \
+                                        .get_tensor_by_name("embeddings:0")
+            phase_train_placeholder = tf.get_default_graph() \
+                                        .get_tensor_by_name("phase_train:0")
+
             embedding_size = embeddings.get_shape()[1]
 
             # Run forward pass to calculate embeddings
@@ -88,15 +98,23 @@ def main(args):
                 end_index = min((i+1)*args.batch_size, nrof_images)
                 paths_batch = paths[start_index:end_index]
                 images = facenet.load_data(paths_batch, False, False, args.image_size)
-                feed_dict = {images_placeholder:images, phase_train_placeholder:False}
-                emb_array[start_index:end_index, :] = sess.run(embeddings, feed_dict=feed_dict)
+                feed_dict = {
+                    images_placeholder:         images,
+                    phase_train_placeholder:    False,
+                }
+                emb_array[start_index:end_index, :] = sess.run(
+                    embeddings, feed_dict=feed_dict)
 
             classifier_filename_exp = os.path.expanduser(args.classifier_filename)
 
             if args.mode == 'TRAIN':
                 # Train classifier
                 print('Training classifier')
-                model = SVC(kernel='linear', probability=True)
+                model = SVC(
+                    kernel='linear',
+                    probability=True,
+                    # verbose=True,
+                )
                 model.fit(emb_array, labels)
 
                 # Create a list of class names
@@ -116,18 +134,43 @@ def main(args):
                 print('Loaded classifier model from file "%s"' % classifier_filename_exp)
 
                 predictions = model.predict_proba(emb_array)
+
+                print('predictions.shape: ', predictions.shape)
+                print('predictions: ', predictions)
+
                 best_class_indices = np.argmax(predictions, axis=1)
                 best_class_probabilities = predictions[
                     np.arange(len(best_class_indices)),
                     best_class_indices,
                 ]
 
-                for i in range(len(best_class_indices)):
-                    print('%4d  %s: %.3f' % (i, class_names[best_class_indices[i]], best_class_probabilities[i]))
+                # for i in range(len(best_class_indices)):
+                # for i, best_class_idx in enumerate(best_class_indices):
+                for true_label_idx, guess_label_idx, probability in \
+                        zip(labels, best_class_indices, best_class_probabilities):
+                    # match = best_class_idx == labels[i]
+                    match = true_label_idx == guess_label_idx
+                    # print('%4d %s %s: %.3f %s' % (
+                    #     i,
+                    print('%s %s: %.3f %s' % (
+                        ' ' if match else 'x',
+                        class_names[guess_label_idx],
+                        # best_class_probabilities[i],
+                        probability,
+                        '' if match else 'Ground Truth: ' + dataset[true_label_idx].name,
+                    ))
+                    # if not match:
+                    #     fig, (ax1, ax2) = plt.subplots(1, 2)
+                    #     img1 = plt.imread(paths[i])
+                    #     img2 = plt.imread(paths[i])
+                    #     ax1.imshow(img1)
+                    #     ax2.imshow(img2)
+                    #     fig.show()
 
                 accuracy = np.mean(np.equal(best_class_indices, labels))  # pylint: disable=E1101
                 print('Accuracy: %.3f' % accuracy)
 
+                plt.waitforbuttonpress()
 
 def split_dataset(dataset, min_nrof_images_per_class, nrof_train_images_per_class):
     '''split dataset'''
@@ -144,33 +187,53 @@ def split_dataset(dataset, min_nrof_images_per_class, nrof_train_images_per_clas
 
 
 def parse_arguments(argv):
+    """ args """
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('mode', type=str, choices=['TRAIN', 'CLASSIFY'],
-        help='Indicates if a new classifier should be trained or a classification ' +
-        'model should be used for classification', default='CLASSIFY')
-    parser.add_argument('data_dir', type=str,
+    parser.add_argument(
+        'mode', type=str, choices=['TRAIN', 'CLASSIFY'], default='CLASSIFY',
+        help='Indicates if a new classifier should be trained or a classification '
+        'model should be used for classification')
+    parser.add_argument(
+        'data_dir', type=str,
         help='Path to the data directory containing aligned LFW face patches.')
-    parser.add_argument('model', type=str,
-        help='Could be either a directory containing the meta_file and ckpt_file or a model protobuf (.pb) file')
-    parser.add_argument('classifier_filename',
-        help='Classifier model file name as a pickle (.pkl) file. ' +
-        'For training this is the output and for classification this is an input.')
-    parser.add_argument('--use_split_dataset',
-        help='Indicates that the dataset specified by data_dir should be split into a training and test set. ' +
-        'Otherwise a separate test set can be specified using the test_data_dir option.', action='store_true')
-    parser.add_argument('--test_data_dir', type=str,
-        help='Path to the test data directory containing aligned images used for testing.')
-    parser.add_argument('--batch_size', type=int,
-        help='Number of images to process in a batch.', default=90)
-    parser.add_argument('--image_size', type=int,
-        help='Image size (height, width) in pixels.', default=160)
-    parser.add_argument('--seed', type=int,
-        help='Random seed.', default=666)
-    parser.add_argument('--min_nrof_images_per_class', type=int,
-        help='Only include classes with at least this number of images in the dataset', default=20)
-    parser.add_argument('--nrof_train_images_per_class', type=int,
-        help='Use this number of images from each class for training and the rest for testing', default=10)
+    parser.add_argument(
+        'model', type=str,
+        help='Could be either a directory containing the meta_file '
+        'and ckpt_file or a model protobuf (.pb) file')
+    parser.add_argument(
+        'classifier_filename',
+        help='Classifier model file name as a pickle (.pkl) file. '
+        'For training this is the output and for '
+        'classification this is an input.')
+
+    parser.add_argument(
+        '--use_split_dataset', action='store_true',
+        help='Indicates that the dataset specified by data_dir '
+        'should be split into a training and test set. '
+        'Otherwise a separate test set can be specified '
+        'using the test_data_dir option.')
+    parser.add_argument(
+        '--test_data_dir', type=str,
+        help='Path to the test data directory containing aligned images '
+        'used for testing.')
+    parser.add_argument(
+        '--batch_size', type=int, default=90,
+        help='Number of images to process in a batch.')
+    parser.add_argument(
+        '--image_size', type=int, default=160,
+        help='Image size (height, width) in pixels.')
+    parser.add_argument(
+        '--seed', type=int, default=666,
+        help='Random seed.')
+    parser.add_argument(
+        '--min_nrof_images_per_class', type=int, default=20,
+        help='Only include classes with at least '
+        'this number of images in the dataset')
+    parser.add_argument(
+        '--nrof_train_images_per_class', type=int, default=10,
+        help='Use this number of images from each '
+        'class for training and the rest for testing')
 
     return parser.parse_args(argv)
 
