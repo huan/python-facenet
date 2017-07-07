@@ -83,22 +83,22 @@ def parse_arguments(argv):
     return parser.parse_args(argv)
 
 
-def main(argv):
+def main(args):
     """ main """
     print('main')
 
     # strip the end '/'
-    argv.input_dir = os.path.normpath(argv.input_dir)
+    args.input_dir = os.path.normpath(args.input_dir)
 
-    for root, _, files in os.walk(argv.input_dir):
+    for root, _, files in os.walk(args.input_dir):
         for file in files:
-            path_diff = root.replace(argv.input_dir+'/', '')
-            to_dir = os.path.join(argv.output_dir, path_diff)
+            path_diff = root.replace(args.input_dir+'/', '')
+            to_dir = os.path.join(args.output_dir, path_diff)
             # print('argv.output_dir: ', argv.output_dir)
             # print('path_diff: ', path_diff)
             # print('to_dir: ', to_dir)
             print('%s/%s => %s' % (root, file, to_dir))
-            generate(root, file, to_dir, argv.num)
+            generate(root, file, to_dir, args.num)
 
 
 if __name__ == '__main__':

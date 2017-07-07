@@ -1,4 +1,5 @@
-"""An example of how to use your own dataset to train a classifier that recognizes people.
+"""An example of how to use your own dataset to train a classifier that
+recognizes people.
 """
 # MIT License
 #
@@ -11,8 +12,8 @@
 # copies of the Software, and to permit persons to whom the Software is
 # furnished to do so, subject to the following conditions:
 #
-# The above copyright notice and this permission notice shall be included in all
-# copies or substantial portions of the Software.
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
 #
 # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -37,10 +38,11 @@ import numpy as np
 import facenet
 from sklearn.svm import SVC
 
-import matplotlib.pyplot as plt
-plt.ion()
+# import matplotlib.pyplot as plt
+# plt.ion()
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+
 
 def main(args):
     ''' Main entrypoint '''
@@ -66,8 +68,8 @@ def main(args):
             # Check that there are at least one training image per class
             for cls in dataset:
                 assert cls.image_paths, \
-                        'There must be at least one image for each class in the dataset'
-
+                        'There must be at least one image for each class ' \
+                        'in the dataset'
 
             paths, labels = facenet.get_image_paths_and_labels(dataset)
 
@@ -79,25 +81,27 @@ def main(args):
             facenet.load_model(args.model)
 
             # Get input and output tensors
-            images_placeholder      = tf.get_default_graph() \
-                                        .get_tensor_by_name("input:0")
-            embeddings              = tf.get_default_graph() \
-                                        .get_tensor_by_name("embeddings:0")
+            images_placeholder = tf.get_default_graph() \
+                .get_tensor_by_name("input:0")
+            embeddings = tf.get_default_graph() \
+                .get_tensor_by_name("embeddings:0")
             phase_train_placeholder = tf.get_default_graph() \
-                                        .get_tensor_by_name("phase_train:0")
+                .get_tensor_by_name("phase_train:0")
 
             embedding_size = embeddings.get_shape()[1]
 
             # Run forward pass to calculate embeddings
             print('Calculating features for images')
             nrof_images = len(paths)
-            nrof_batches_per_epoch = int(math.ceil(1.0*nrof_images / args.batch_size))
+            nrof_batches_per_epoch = int(
+                math.ceil(1.0*nrof_images / args.batch_size))
             emb_array = np.zeros((nrof_images, embedding_size))
             for i in range(nrof_batches_per_epoch):
                 start_index = i*args.batch_size
                 end_index = min((i+1)*args.batch_size, nrof_images)
                 paths_batch = paths[start_index:end_index]
-                images = facenet.load_data(paths_batch, False, False, args.image_size)
+                images = facenet.load_data(
+                    paths_batch, False, False, args.image_size)
                 feed_dict = {
                     images_placeholder:         images,
                     phase_train_placeholder:    False,
@@ -105,7 +109,8 @@ def main(args):
                 emb_array[start_index:end_index, :] = sess.run(
                     embeddings, feed_dict=feed_dict)
 
-            classifier_filename_exp = os.path.expanduser(args.classifier_filename)
+            classifier_filename_exp = os.path.expanduser(
+                args.classifier_filename)
 
             if args.mode == 'TRAIN':
                 # Train classifier
@@ -123,7 +128,8 @@ def main(args):
                 # Saving classifier model
                 with open(classifier_filename_exp, 'wb') as outfile:
                     pickle.dump((model, class_names), outfile)
-                print('Saved classifier model to file "%s"' % classifier_filename_exp)
+                print('Saved classifier model to file "%s"' %
+                      classifier_filename_exp)
 
             elif args.mode == 'CLASSIFY':
                 # Classify images
@@ -131,12 +137,14 @@ def main(args):
                 with open(classifier_filename_exp, 'rb') as infile:
                     (model, class_names) = pickle.load(infile)
 
-                print('Loaded classifier model from file "%s"' % classifier_filename_exp)
+                print(
+                    'Loaded classifier model from file "%s"'
+                    % classifier_filename_exp)
 
                 predictions = model.predict_proba(emb_array)
 
-                print('predictions.shape: ', predictions.shape)
-                print('predictions: ', predictions)
+                # print('predictions.shape: ', predictions.shape)
+                # print('predictions: ', predictions)
 
                 best_class_indices = np.argmax(predictions, axis=1)
                 best_class_probabilities = predictions[
@@ -147,7 +155,11 @@ def main(args):
                 # for i in range(len(best_class_indices)):
                 # for i, best_class_idx in enumerate(best_class_indices):
                 for true_label_idx, guess_label_idx, probability in \
-                        zip(labels, best_class_indices, best_class_probabilities):
+                        zip(
+                            labels,
+                            best_class_indices,
+                            best_class_probabilities
+                        ):
                     # match = best_class_idx == labels[i]
                     match = true_label_idx == guess_label_idx
                     # print('%4d %s %s: %.3f %s' % (
@@ -157,7 +169,8 @@ def main(args):
                         class_names[guess_label_idx],
                         # best_class_probabilities[i],
                         probability,
-                        '' if match else 'Ground Truth: ' + dataset[true_label_idx].name,
+                        '' if match else 'Ground Truth: ' + dataset[
+                            true_label_idx].name,
                     ))
                     # if not match:
                     #     fig, (ax1, ax2) = plt.subplots(1, 2)
@@ -167,12 +180,17 @@ def main(args):
                     #     ax2.imshow(img2)
                     #     fig.show()
 
-                accuracy = np.mean(np.equal(best_class_indices, labels))  # pylint: disable=E1101
+                accuracy = np.mean(np.equal(best_class_indices, labels))
                 print('Accuracy: %.3f' % accuracy)
 
-                plt.waitforbuttonpress()
+                # plt.waitforbuttonpress()
 
-def split_dataset(dataset, min_nrof_images_per_class, nrof_train_images_per_class):
+
+def split_dataset(
+        dataset,
+        min_nrof_images_per_class,
+        nrof_train_images_per_class
+):
     '''split dataset'''
     train_set = []
     test_set = []
@@ -181,8 +199,12 @@ def split_dataset(dataset, min_nrof_images_per_class, nrof_train_images_per_clas
         # Remove classes with less than min_nrof_images_per_class
         if len(paths) >= min_nrof_images_per_class:
             np.random.shuffle(paths)  # pylint: disable=E1101
-            train_set.append(facenet.ImageClass(cls.name, paths[:nrof_train_images_per_class]))
-            test_set.append(facenet.ImageClass(cls.name, paths[nrof_train_images_per_class:]))
+            train_set.append(facenet.ImageClass(
+                cls.name,
+                paths[:nrof_train_images_per_class]))
+            test_set.append(facenet.ImageClass(
+                cls.name,
+                paths[nrof_train_images_per_class:]))
     return train_set, test_set
 
 
@@ -192,8 +214,8 @@ def parse_arguments(argv):
 
     parser.add_argument(
         'mode', type=str, choices=['TRAIN', 'CLASSIFY'], default='CLASSIFY',
-        help='Indicates if a new classifier should be trained or a classification '
-        'model should be used for classification')
+        help='Indicates if a new classifier should be trained or '
+        'a classification model should be used for classification')
     parser.add_argument(
         'data_dir', type=str,
         help='Path to the data directory containing aligned LFW face patches.')
@@ -236,6 +258,7 @@ def parse_arguments(argv):
         'class for training and the rest for testing')
 
     return parser.parse_args(argv)
+
 
 if __name__ == '__main__':
     main(parse_arguments(sys.argv[1:]))

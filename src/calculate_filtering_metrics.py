@@ -56,13 +56,14 @@ def main(args):
             False, False, False, nrof_preprocess_threads=4, shuffle=False)
 
         model_exp = os.path.expanduser(args.model_file)
-        with gfile.FastGFile(model_exp, 'rb') as myfile:
+        with gfile.FastGFile(model_exp, 'rb') as f:
             graph_def = tf.GraphDef()
-            graph_def.ParseFromString(myfile.read())
+            graph_def.ParseFromString(f.read())
             input_map = {'input': image_batch, 'phase_train': False}
             tf.import_graph_def(graph_def, input_map=input_map, name='net')
 
-        embeddings = tf.get_default_graph().get_tensor_by_name("net/embeddings:0")
+        embeddings = tf.get_default_graph()\
+            .get_tensor_by_name("net/embeddings:0")
 
         with tf.Session() as sess:
             tf.train.start_queue_runners(sess=sess)
@@ -103,17 +104,18 @@ def main(args):
                         idx_array = np.delete(idx_array, cls_idx, axis=0)
                         lab_array = np.delete(lab_array, cls_idx, axis=0)
 
-
                 print('Batch %d in %.3f seconds' % (i, time.time()-start_time))
 
             print('Writing filtering data to %s' % args.data_file_name)
             mdict = {
-                'class_names':class_names, 'image_list':image_list,
-                'label_list':label_list, 'distance_to_center':distance_to_center
+                'class_names':          class_names,
+                'image_list':           image_list,
+                'label_list':           label_list,
+                'distance_to_center':   distance_to_center,
             }
-            with h5py.File(args.data_file_name, 'w') as myfile:
+            with h5py.File(args.data_file_name, 'w') as f:
                 for key, value in mdict.iteritems():  # pylint: disable=E1101
-                    myfile.create_dataset(key, data=value)
+                    f.create_dataset(key, data=value)
 
 def parse_arguments(argv):
     """parse_arguments

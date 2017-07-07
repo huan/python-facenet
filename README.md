@@ -60,13 +60,12 @@ The accuracy on LFW for the model [20170512-110547](https://drive.google.com/fil
 
 ```shell
 python src/align/align_dataset_mtcnn.py \
-    /datasets/ceibs/training-images \
+    /datasets/ceibs/training-images-gen \
     /datasets/ceibs/mtcnn160 \
     --image_size 160 \
     --margin 32 \
     --random_order \
     --gpu_memory_fraction 0.2 \
-    &
 ```
 
 ### Classifier
@@ -76,8 +75,8 @@ python src/classifier.py TRAIN \
     /datasets/ceibs/mtcnn160/ \
     ./models/facenet/20170512-110547/20170512-110547.pb \
     ./models/ceibs_classifier.pkl \
-    --batch_size 1 \
     --test_data_dir=/datasets/ceibs/mtcnn160/ \
+    --batch_size 1 \
     \
     --use_split_dataset=0 \
     --min_nrof_images_per_class=1 \
