@@ -1,11 +1,13 @@
-import numpy as np
+""" layout """
 import matplotlib.pyplot as plt
+import numpy as np
+
 x = np.linspace(0, 2*np.pi, 400)
 y = np.sin(x**2)
-f, axs = plt.subplots(2, 2, sharex=True)
+f, axes = plt.subplots(2, 2, sharex=True)
 print(plt.figure)
-ax01.plot(x, y)
-ax01.set_title('Sharing Y axis')
-ax02.scatter(x, y)
+axes[0, 0].plot(x, y)
+axes[1, 1].set_title('Sharing Y axis')
+axes[1, 0].scatter(x, y)
 
 plt.show()

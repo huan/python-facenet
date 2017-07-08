@@ -24,8 +24,13 @@ class Ui(object):
     def __init__(self):
         self.im = None   # type: AxesImage
         self.fig, self.ax = plt.subplots()
+        self.interactive_mode()
+        self.show()
 
-    def show_photo(self, file: str) -> None:
+    def show_photo(
+            self,
+            file: str
+    ) -> None:
         """ show photo
         """
         img = plt.imread(file)
@@ -39,13 +44,14 @@ class Ui(object):
             height: int,
     ) -> None:
         """ draw """
-        # color = np.random.randint(3)
+        rgba = np.random.rand(4,)
         # color = color.list()
         rect = Rectangle(
             [x, y],
             width,
             height,
             linewidth=1,
+            color=rgba,
             edgecolor='r',
             facecolor='none'
         )
@@ -75,6 +81,12 @@ class Ui(object):
             plt.ion()
         else:
             plt.ioff()
+
+    def wait_key(self) -> None:
+        """ wait press """
+        # plt.pause(1) # <-------
+        # raw_input("<Hit Enter To Close>")
+        plt.waitforbuttonpress()
 
     def huan(self, n: int) -> None:
         """ test
