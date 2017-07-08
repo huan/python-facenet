@@ -1,16 +1,11 @@
 """ module """
-from ui import Ui
+from monitor import Monitor
 
-ui = Ui()
+m1 = Monitor('1')
+m1.display('../opencv-python-tutorial/brothers.jpg')
 
-ui.show_photo('../opencv-python-tutorial/brothers.jpg')
-ui.draw_rectangle(5, 5, 10, 10)
+m1.rectangle(5, 5, 10, 10)
+m1.waitforbuttonpress()
 
-# ui.pause(1)
-ui.wait_key()
-
-ui.draw_rectangle(50, 50, 100, 100)
-# ui.draw()
-
-# ui.pause(10)
-ui.wait_key()
+m1.display('../opencv-python-tutorial/tux-python-egg.jpg')
+m1.waitforbuttonpress()

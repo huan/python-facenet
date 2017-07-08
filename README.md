@@ -50,30 +50,71 @@ The accuracy on LFW for the model [20170512-110547](https://drive.google.com/fil
 ### References
 
 * [VAL, FAR and Accuracy](https://github.com/davidsandberg/facenet/issues/288)
+* [NMS——非极大值抑制](http://blog.csdn.net/shuzfan/article/details/52711706)
+* [MTCNN（Multi-task convolutional neural networks）人脸对齐](http://blog.csdn.net/qq_14845119/article/details/52680940)
 
-#### Memo
+# Note
 
 
-python src/train_softmax.py --logs_base_dir /facenet/logs/facenet/ --models_base_dir /facenet/models/facenet/20170512-110547/ --data_dir /facenet/datasets/lfw/lfw_maxpy_mtcnnpy_182/ --image_size 160 --model_def models.inception_resnet_v1 --optimizer RMSPROP --learning_rate -1 --max_nrof_epochs 80 --keep_probability 0.8 --random_crop --random_flip --learning_rate_schedule_file data/learning_rate_schedule_classifier_casia.txt --weight_decay 5e-5 --center_loss_factor 1e-2 --center_loss_alfa 0.9
+### MTCNN
 
-for N in {1..4}; do python src/align/align_dataset_mtcnn.py /facenet/datasets/lfw/raw /facenet/datasets/lfw/lfw_mtcnnpy_160 --image_size 160 --margin 32 --random_order --gpu_memory_fraction 0.25 & done
+```shell
+python src/align/align_dataset_mtcnn.py \
+    /datasets/ceibs/training-images-gen \
+    /datasets/ceibs/mtcnn160 \
+    --image_size 160 \
+    --margin 32 \
+    --random_order \
+    --gpu_memory_fraction 0.2 \
+```
 
+### Classifier
+
+```shell
+python src/classifier.py TRAIN \
+    /datasets/ceibs/mtcnn160/ \
+    ./models/facenet/20170512-110547/20170512-110547.pb \
+    ./models/ceibs_classifier.pkl \
+    --test_data_dir=/datasets/ceibs/mtcnn160/ \
+    --batch_size 1 \
+    \
+    --use_split_dataset=0 \
+    --min_nrof_images_per_class=1 \
+    --nrof_train_images_per_class=1 \
+    ;
+```
+
+```shell
+python src/classifier.py CLASSIFY \
+    /datasets/ceibs/mtcnn160/ \
+    ./models/facenet/20170512-110547/20170512-110547.pb \
+    ./models/ceibs_classifier.pkl \
+    --batch_size 1 \
+    --image_size=160 \
+    \
+    --use_split_dataset=0 \
+    --min_nrof_images_per_class=1 \
+    --nrof_train_images_per_class=1 \
+    ;
+```
+
+### Train Triple Loss
+
+```shell
 python src/train_tripletloss.py --logs_base_dir /facenet/logs/facenet/ --models_base_dir /facenet/models/facenet/ --data_dir /facenet/datasets/lfw/lfw_maxpy_mtcnnpy_182/ --image_size 160 --model_def models.inception_resnet_v1 --lfw_dir /facenet/datasets/lfw/lfw_mtcnnpy_160/ --optimizer RMSPROP --learning_rate 0.01 --weight_decay 1e-4 --max_nrof_epochs 500 --gpu_memory_fraction 0.5
+```
+
+### Train Soft Max
+
+```shell
+python src/train_softmax.py --logs_base_dir /facenet/logs/facenet/ --models_base_dir /facenet/models/facenet/20170512-110547/ --data_dir /facenet/datasets/lfw/lfw_maxpy_mtcnnpy_182/ --image_size 160 --model_def models.inception_resnet_v1 --optimizer RMSPROP --learning_rate -1 --max_nrof_epochs 80 --keep_probability 0.8 --random_crop --random_flip --learning_rate_schedule_file data/learning_rate_schedule_classifier_casia.txt --weight_decay 5e-5 --center_loss_factor 1e-2 --center_loss_alfa 0.9
+```
+
 
 ### Validate LFW
 
 ```shell
-$ for N in {1..4}; do 
-    python3 src/align/align_dataset_mtcnn.py \
-        /datasets/lfw/raw \
-        /datasets/lfw/lfw_mtcnnpy_160 \
-        --image_size 160 \
-        --margin 32 \
-        --random_order \
-        --gpu_memory_fraction 0.2 &
-done
-
-$ python3 src/validate_on_lfw.py \
+python3 src/validate_on_lfw.py \
     /datasets/lfw/lfw_mtcnnpy_160 \
     ./models/facenet/20170512-110547
 ```

@@ -41,6 +41,8 @@ import numpy as np
 import facenet
 from align import detect_face
 
+# from monitor import Monitor
+
 
 def main(args):
     """main
@@ -76,6 +78,8 @@ def main(args):
     bounding_boxes_filename = os.path.join(
         output_dir, 'bounding_boxes_%05d.txt' % random_key)
 
+    # monitor1 = Monitor('mtcnn')
+
     with open(bounding_boxes_filename, "w") as text_file:
         nrof_images_total = 0
         nrof_successfully_aligned = 0
@@ -108,8 +112,21 @@ def main(args):
                             img = facenet.to_rgb(img)
                         img = img[:, :, 0:3]
 
+                        # monitor1.display(img)
+
                         bounding_boxes, _ = detect_face.detect_face(
                             img, minsize, pnet, rnet, onet, threshold, factor)
+
+                        # for i in range(bounding_boxes.shape[0]):
+                        #     print(bounding_boxes[i])
+                        #     x = bounding_boxes[i][0]
+                        #     y = bounding_boxes[i][1]
+                        #     w = bounding_boxes[i][2] - x
+                        #     h = bounding_boxes[i][3] - y
+                        #     monitor1.rectangle(x, y, w, h)
+
+                        # monitor1.waitforbuttonpress()
+
                         nrof_faces = bounding_boxes.shape[0]
                         if nrof_faces > 0:
                             det = bounding_boxes[:, 0:4]
@@ -138,12 +155,18 @@ def main(args):
                             bb[3] = np.minimum(det[3]+args.margin/2,
                                                img_size[0])
                             cropped = img[bb[1]:bb[3], bb[0]:bb[2], :]
+
+                            # monitor1.rectangle(bb[0], bb[1], bb[2]-bb[0], bb[3]-bb[1])
+                            # monitor1.waitforbuttonpress()
+
                             scaled = misc.imresize(
                                 cropped,
                                 (args.image_size, args.image_size),
                                 interp='bilinear')
                             nrof_successfully_aligned += 1
                             misc.imsave(output_filename, scaled)
+
+                            # print('scaled.shape: ', scaled.shape)
                             text_file.write('%s %d %d %d %d\n' % (
                                 output_filename, bb[0], bb[1], bb[2], bb[3]))
                         else:
