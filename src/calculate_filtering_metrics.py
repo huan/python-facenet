@@ -39,6 +39,7 @@ import numpy as np
 import facenet
 import h5py
 
+
 def main(args):
     """main
     """
@@ -117,23 +118,31 @@ def main(args):
                 for key, value in mdict.iteritems():  # pylint: disable=E1101
                     f.create_dataset(key, data=value)
 
+
 def parse_arguments(argv):
     """parse_arguments
     """
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('dataset_dir', type=str,
-                        help='Path to the directory containing aligned dataset.')
-    parser.add_argument('model_file', type=str,
-                        help='File containing the frozen model in protobuf (.pb)'
-                             ' format to use for feature extraction.')
-    parser.add_argument('data_file_name', type=str,
-                        help='The name of the file to store filtering data in.')
-    parser.add_argument('--image_size', type=int,
-                        help='Image size.', default=160)
-    parser.add_argument('--batch_size', type=int,
-                        help='Number of images to process in a batch.', default=90)
+    parser.add_argument(
+        'dataset_dir', type=str,
+        help='Path to the directory containing aligned dataset.')
+    parser.add_argument(
+        'model_file', type=str,
+        help='File containing the frozen model in protobuf (.pb)'
+        ' format to use for feature extraction.')
+    parser.add_argument(
+        'data_file_name', type=str,
+        help='The name of the file to store filtering data in.')
+
+    parser.add_argument(
+        '--image_size', type=int, default=160,
+        help='Image size.')
+    parser.add_argument(
+        '--batch_size', type=int, default=90,
+        help='Number of images to process in a batch.')
     return parser.parse_args(argv)
+
 
 if __name__ == '__main__':
     main(parse_arguments(sys.argv[1:]))
