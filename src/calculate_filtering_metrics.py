@@ -11,8 +11,8 @@
 # copies of the Software, and to permit persons to whom the Software is
 # furnished to do so, subject to the following conditions:
 #
-# The above copyright notice and this permission notice shall be included in all
-# copies or substantial portions of the Software.
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
 #
 # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -39,9 +39,9 @@ import numpy as np
 import facenet
 import h5py
 
+
 def main(args):
-    """main
-    """
+    """ main """
     dataset = facenet.get_dataset(args.dataset_dir)
 
     with tf.Graph().as_default():
@@ -96,10 +96,11 @@ def main(args):
                         emb_sort = emb_class[idx2, :]
                         center = np.mean(emb_sort, axis=0)
                         diffs = emb_sort - center
-                        dists_sqr = np.sum(np.square(diffs), axis=1)  # pylint: disable=E1101
+                        dists_sqr = np.sum(np.square(diffs), axis=1)
                         class_variance[cls] = np.mean(dists_sqr)
                         class_center[cls, :] = center
-                        distance_to_center[index_arr[cls]:index_arr[cls+1]] = np.sqrt(dists_sqr)
+                        distance_to_center[index_arr[cls]:index_arr[cls+1]] \
+                            = np.sqrt(dists_sqr)
                         emb_array = np.delete(emb_array, cls_idx, axis=0)
                         idx_array = np.delete(idx_array, cls_idx, axis=0)
                         lab_array = np.delete(lab_array, cls_idx, axis=0)
@@ -117,23 +118,29 @@ def main(args):
                 for key, value in mdict.iteritems():  # pylint: disable=E1101
                     f.create_dataset(key, data=value)
 
+
 def parse_arguments(argv):
-    """parse_arguments
-    """
+    """ parse_arguments """
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('dataset_dir', type=str,
-                        help='Path to the directory containing aligned dataset.')
-    parser.add_argument('model_file', type=str,
-                        help='File containing the frozen model in protobuf (.pb)'
-                             ' format to use for feature extraction.')
-    parser.add_argument('data_file_name', type=str,
-                        help='The name of the file to store filtering data in.')
-    parser.add_argument('--image_size', type=int,
-                        help='Image size.', default=160)
-    parser.add_argument('--batch_size', type=int,
-                        help='Number of images to process in a batch.', default=90)
+    parser.add_argument(
+        'dataset_dir', type=str,
+        help='Path to the directory containing aligned dataset.')
+    parser.add_argument(
+        'model_file', type=str,
+        help='File containing the frozen model in protobuf (.pb)'
+        ' format to use for feature extraction.')
+    parser.add_argument(
+        'data_file_name', type=str,
+        help='The name of the file to store filtering data in.')
+    parser.add_argument(
+        '--image_size', type=int,
+        help='Image size.', default=160)
+    parser.add_argument(
+        '--batch_size', type=int,
+        help='Number of images to process in a batch.', default=90)
     return parser.parse_args(argv)
+
 
 if __name__ == '__main__':
     main(parse_arguments(sys.argv[1:]))
