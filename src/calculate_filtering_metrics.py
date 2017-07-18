@@ -133,12 +133,13 @@ def parse_arguments(argv):
     parser.add_argument(
         'data_file_name', type=str,
         help='The name of the file to store filtering data in.')
+
     parser.add_argument(
-        '--image_size', type=int,
-        help='Image size.', default=160)
+        '--image_size', type=int, default=160,
+        help='Image size.')
     parser.add_argument(
-        '--batch_size', type=int,
-        help='Number of images to process in a batch.', default=90)
+        '--batch_size', type=int, default=90,
+        help='Number of images to process in a batch.')
     return parser.parse_args(argv)
 
 
