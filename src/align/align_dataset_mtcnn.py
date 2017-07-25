@@ -109,7 +109,9 @@ def main(args):
                             text_file.write('%s\n' % (output_filename))
                             continue
                         if img.ndim == 2:
+                            # gray image
                             img = facenet.to_rgb(img)
+                        # get rid of alpha channel
                         img = img[:, :, 0:3]
 
                         # monitor1.display(img)
