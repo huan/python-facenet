@@ -19,7 +19,8 @@ def demo1():
             break
 
         # gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-
+        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        print(frame.shape)
         # plt.scatter(i, y)
         plt.imshow(frame)
         plt.show()
