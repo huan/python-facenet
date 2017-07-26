@@ -36,6 +36,7 @@ from scipy import misc
 import align_dlib
 import facenet
 
+
 def main(args):
     """ main
     """
