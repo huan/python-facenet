@@ -31,9 +31,7 @@ import sys
 import os
 import argparse
 import random
-
-from scipy import misc
-import align_dlib
+import align_dlib  # @UnresolvedImport
 import facenet
 
 

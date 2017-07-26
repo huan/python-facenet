@@ -373,7 +373,7 @@ class ImageClass():
         return len(self.image_paths)
 
 
-def get_dataset(paths):
+def get_dataset(paths, has_class_directories=True):
     dataset = []
     for path in paths.split(':'):
         path_exp = os.path.expanduser(path)
@@ -383,12 +383,18 @@ def get_dataset(paths):
         for i in range(nrof_classes):
             class_name = classes[i]
             facedir = os.path.join(path_exp, class_name)
-            if os.path.isdir(facedir):
-                images = os.listdir(facedir)
-                image_paths = [os.path.join(facedir, img) for img in images]
-                dataset.append(ImageClass(class_name, image_paths))
+            image_paths = get_image_paths(facedir)
+            dataset.append(ImageClass(class_name, image_paths))
 
     return dataset
+
+
+def get_image_paths(facedir):
+    image_paths = []
+    if os.path.isdir(facedir):
+        images = os.listdir(facedir)
+        image_paths = [os.path.join(facedir, img) for img in images]
+    return image_paths
 
 
 def split_dataset(dataset, split_ratio, mode):
@@ -483,35 +489,16 @@ def calculate_roc(thresholds, embeddings1, embeddings2,
 
         # Find the best threshold for the fold
         acc_train = np.zeros((nrof_thresholds))
-
         for threshold_idx, threshold in enumerate(thresholds):
-            _, _, acc_train[threshold_idx] = \
-                calculate_accuracy(
-                    threshold,
-                    dist[train_set],
-                    actual_issame[train_set]
-                )
+            _, _, acc_train[threshold_idx] = calculate_accuracy(threshold, dist[train_set], actual_issame[train_set])
         best_threshold_index = np.argmax(acc_train)
-
         for threshold_idx, threshold in enumerate(thresholds):
-            tprs[fold_idx, threshold_idx], fprs[fold_idx, threshold_idx], _ = \
-                calculate_accuracy(
-                    threshold,
-                    dist[test_set],
-                    actual_issame[test_set]
-                )
+            tprs[fold_idx,threshold_idx], fprs[fold_idx,threshold_idx], _ = calculate_accuracy(threshold, dist[test_set], actual_issame[test_set])
+        _, _, accuracy[fold_idx] = calculate_accuracy(thresholds[best_threshold_index], dist[test_set], actual_issame[test_set])
 
-        _, _, accuracy[fold_idx] = calculate_accuracy(
-            thresholds[best_threshold_index],
-            dist[test_set],
-            actual_issame[test_set],
-        )
-
-    tpr = np.mean(tprs, 0)
-    fpr = np.mean(fprs, 0)
-
+    tpr = np.mean(tprs,0)
+    fpr = np.mean(fprs,0)
     return tpr, fpr, accuracy
-
 
 def calculate_accuracy(threshold, dist, actual_issame):
     """Accuracy
@@ -613,3 +600,25 @@ def list_variables(filename):
     variable_map = reader.get_variable_to_shape_map()
     names = sorted(variable_map.keys())
     return names
+
+def put_images_on_grid(images, shape=(16,8)):
+    nrof_images = images.shape[0]
+    img_size = images.shape[1]
+    bw = 3
+    img = np.zeros((shape[1]*(img_size+bw)+bw, shape[0]*(img_size+bw)+bw, 3), np.float32)
+    for i in range(shape[1]):
+        x_start = i*(img_size+bw)+bw
+        for j in range(shape[0]):
+            img_index = i*shape[0]+j
+            if img_index>=nrof_images:
+                break
+            y_start = j*(img_size+bw)+bw
+            img[x_start:x_start+img_size, y_start:y_start+img_size, :] = images[img_index, :, :, :]
+        if img_index>=nrof_images:
+            break
+    return img
+
+def write_arguments_to_file(args, filename):
+    with open(filename, 'w') as f:
+        for key, value in vars(args).iteritems():
+            f.write('%s: %s\n' % (key, str(value)))

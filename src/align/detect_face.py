@@ -357,22 +357,19 @@ def create_mtcnn(sess, model_path):
 
 
 def detect_face(img, minsize, pnet, rnet, onet, threshold, factor):
-    """
-    img: input image
-    minsize: minimum of faces' size
-    pnet, rnet, onet: caffemodel
-    threshold: threshold=[th1 th2 th3], th1-3 are three steps's threshold
-    fastresize: resize img from last scale (using in high-resolution images)
-    if fastresize==true
-    """
-    factor_count = 0
-    total_boxes = np.empty((0, 9))
-    points = []
-    h = img.shape[0]
-    w = img.shape[1]
-    minl = np.amin([h, w])
-    m = 12.0/minsize
-    minl = minl * m
+    # im: input image
+    # minsize: minimum of faces' size
+    # pnet, rnet, onet: caffemodel
+    # threshold: threshold=[th1 th2 th3], th1-3 are three steps's threshold
+    # fastresize: resize img from last scale (using in high-resolution images) if fastresize==true
+    factor_count=0
+    total_boxes=np.empty((0,9))
+    points=np.empty(0)
+    h=img.shape[0]
+    w=img.shape[1]
+    minl=np.amin([h, w])
+    m=12.0/minsize
+    minl=minl*m
     # creat scale pyramid
     scales = []
     while minl >= 12:

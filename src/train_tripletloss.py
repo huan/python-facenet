@@ -44,10 +44,8 @@ from tensorflow.python.ops import data_flow_ops     # pylint: disable=E0611
 
 
 def main(args):
-    """ main
-    """
 
-    network = importlib.import_module(args.model_def, 'inference')
+    network = importlib.import_module(args.model_def)
 
     subdir = datetime.strftime(datetime.now(), '%Y%m%d-%H%M%S')
     log_dir = os.path.join(os.path.expanduser(args.logs_base_dir), subdir)
@@ -58,6 +56,9 @@ def main(args):
     if not os.path.isdir(model_dir):
         # Create the model directory if it doesn't exist
         os.makedirs(model_dir)
+
+    # Write arguments to a text file
+    facenet.write_arguments_to_file(args, os.path.join(log_dir, 'arguments.txt'))
 
     # Store some git revision info in a text file in the log directory
     src_path, _ = os.path.split(os.path.realpath(__file__))
@@ -141,6 +142,9 @@ def main(args):
             enqueue_many=True,
             capacity=4 * nrof_preprocess_threads * args.batch_size,
             allow_smaller_final_batch=True)
+        image_batch = tf.identity(image_batch, 'image_batch')
+        image_batch = tf.identity(image_batch, 'input')
+        labels_batch = tf.identity(labels_batch, 'label_batch')
 
         # Build the inference graph
         prelogits, _ = network.inference(
@@ -241,7 +245,6 @@ def main(args):
                              args.lfw_nrof_folds, log_dir, step,
                              summary_writer, args.embedding_size)
 
-    sess.close()
     return model_dir
 
 
