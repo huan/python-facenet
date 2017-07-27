@@ -297,6 +297,7 @@ def to_rgb(img):
 
 def load_data(image_paths, do_random_crop, do_random_flip,
               image_size, do_prewhiten=True):
+    """ load """
     nrof_samples = len(image_paths)
     images = np.zeros((nrof_samples, image_size, image_size, 3))
     for i in range(nrof_samples):
@@ -312,6 +313,7 @@ def load_data(image_paths, do_random_crop, do_random_flip,
 
 
 def get_label_batch(label_data, batch_size, batch_index):
+    """ get """
     nrof_examples = np.size(label_data, 0)
     j = batch_index*batch_size % nrof_examples
     if j+batch_size <= nrof_examples:

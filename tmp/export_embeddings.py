@@ -1,8 +1,8 @@
 """
 Exports the embeddings and labels of a directory of images as numpy arrays.
 
-Typicall usage expect the image directory to be of the openface/facenet form and
-the images to be aligned. Simply point to your model and your image directory:
+Typicall usage expect the image directory to be of the openface/facenet form
+and the images to be aligned. Simply point to your model and your image directory:
     python facenet/tmp/export_embeddings.py ~/models/facenet/20170216-091149/ ~/datasets/lfw/mylfw
 
 Output:
@@ -61,7 +61,9 @@ import facenet
 import align.detect_face
 import glob
 
+
 def main(args):
+    """ main """
     train_set = facenet.get_dataset(args.data_dir)
     image_list, label_list = facenet.get_image_paths_and_labels(train_set)
     label_strings = [name for name in os.listdir(os.path.expanduser(args.data_dir)) if os.path.isdir(os.path.join(os.path.expanduser(args.data_dir), name))]
@@ -89,16 +91,29 @@ def main(args):
             start_time = time.time()
 
             for i in range(nrof_batches):
-                if i == nrof_batches -1:
+                if i == nrof_batches - 1:
                     n = nrof_images
                 else:
                     n = i*batch_size + batch_size
                 # Get images for the batch
                 if args.is_aligned is True:
-                    images = facenet.load_data(image_list[i*batch_size:n], False, False, args.image_size)
+                    images = facenet.load_data(
+                        image_list[i*batch_size:n],
+                        False,
+                        False,
+                        args.image_size
+                    )
                 else:
-                    images = load_and_align_data(image_list[i*batch_size:n], args.image_size, args.margin, args.gpu_memory_fraction)
-                feed_dict = { images_placeholder: images, phase_train_placeholder:False }
+                    images = load_and_align_data(
+                        image_list[i*batch_size:n],
+                        args.image_size,
+                        args.margin,
+                        args.gpu_memory_fraction,
+                    )
+                feed_dict = {
+                    images_placeholder:         images,
+                    phase_train_placeholder:    False,
+                }
                 # Use the facenet model to calcualte embeddings
                 embed = sess.run(embeddings, feed_dict=feed_dict)
                 emb_array[i*batch_size:n, :] = embed
@@ -107,8 +122,8 @@ def main(args):
             run_time = time.time() - start_time
             print('Run time: ', run_time)
 
-            #   export emedings and labels
-            label_list  = np.array(label_list)
+            # export emedings and labels
+            label_list = np.array(label_list)
 
             np.save(args.embeddings_name, emb_array)
             np.save(args.labels_name, label_list)
@@ -116,21 +131,28 @@ def main(args):
 
 
 def load_and_align_data(image_paths, image_size, margin, gpu_memory_fraction):
-
-    minsize = 20 # minimum size of face
-    threshold = [ 0.6, 0.7, 0.7 ]  # three steps's threshold
-    factor = 0.709 # scale factor
+    """ doc """
+    minsize = 20    # minimum size of face
+    threshold = [0.6, 0.7, 0.7]  # three steps's threshold
+    factor = 0.709  # scale factor
 
     print('Creating networks and loading parameters')
     with tf.Graph().as_default():
-        gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=gpu_memory_fraction)
-        sess = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options, log_device_placement=False))
+        gpu_options = tf.GPUOptions(
+            per_process_gpu_memory_fraction=gpu_memory_fraction
+        )
+        sess = tf.Session(
+            config=tf.ConfigProto(
+                gpu_options=gpu_options,
+                log_device_placement=False
+            )
+        )
         with sess.as_default():
             pnet, rnet, onet = align.detect_face.create_mtcnn(sess, None)
 
     nrof_samples = len(image_paths)
     img_list = [None] * nrof_samples
-    for i in xrange(nrof_samples):
+    for i in range(nrof_samples):
         print(image_paths[i])
         img = misc.imread(os.path.expanduser(image_paths[i]))
         img_size = np.asarray(img.shape)[0:2]
@@ -179,6 +201,7 @@ def parse_arguments(argv):
         help='Enter string of which the labels as strings numpy array is saved as.',
         default='label_strings.npy')
     return parser.parse_args(argv)
+
 
 if __name__ == '__main__':
     main(parse_arguments(sys.argv[1:]))
