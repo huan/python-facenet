@@ -492,18 +492,33 @@ def calculate_roc(thresholds, embeddings1, embeddings2,
         # Find the best threshold for the fold
         acc_train = np.zeros((nrof_thresholds))
         for threshold_idx, threshold in enumerate(thresholds):
-            _, _, acc_train[threshold_idx] = calculate_accuracy(threshold, dist[train_set], actual_issame[train_set])
+            _, _, acc_train[threshold_idx] = calculate_accuracy(
+                threshold,
+                dist[train_set],
+                actual_issame[train_set]
+            )
         best_threshold_index = np.argmax(acc_train)
         for threshold_idx, threshold in enumerate(thresholds):
-            tprs[fold_idx,threshold_idx], fprs[fold_idx,threshold_idx], _ = calculate_accuracy(threshold, dist[test_set], actual_issame[test_set])
-        _, _, accuracy[fold_idx] = calculate_accuracy(thresholds[best_threshold_index], dist[test_set], actual_issame[test_set])
+            tprs[fold_idx, threshold_idx], fprs[fold_idx, threshold_idx], _ = \
+                calculate_accuracy(
+                    threshold,
+                    dist[test_set],
+                    actual_issame[test_set]
+                )
+        _, _, accuracy[fold_idx] = calculate_accuracy(
+            thresholds[best_threshold_index],
+            dist[test_set],
+            actual_issame[test_set]
+        )
 
-    tpr = np.mean(tprs,0)
-    fpr = np.mean(fprs,0)
+    tpr = np.mean(tprs, 0)
+    fpr = np.mean(fprs, 0)
     return tpr, fpr, accuracy
 
+
 def calculate_accuracy(threshold, dist, actual_issame):
-    """Accuracy
+    """
+    Accuracy
     """
     # pylint: disable=E1101
     predict_issame = np.less(dist, threshold)
