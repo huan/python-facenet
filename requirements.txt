@@ -1,3 +1,4 @@
+cv2
 tensorflow==1.7
 scipy
 scikit-learn
