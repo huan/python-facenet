@@ -30,7 +30,7 @@ import os
 import random
 import re
 from subprocess import Popen, PIPE
-
+import tensorflow as tf
 import numpy as np
 from scipy import misc
 from scipy import interpolate
@@ -40,6 +40,8 @@ import tensorflow as tf
 from tensorflow.python.framework import ops
 from tensorflow.python.training import training
 from tensorflow.python.platform import gfile
+import math
+from six import iteritems
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
@@ -64,21 +66,6 @@ def triplet_loss(anchor, positive, negative, alpha):
 
     return loss
 
-
-def decov_loss(xs):
-    """Decov loss as described in https://arxiv.org/pdf/1511.06068.pdf
-    'Reducing Overfitting In Deep Networks by Decorrelating Representation'
-    """
-    x = tf.reshape(xs, [int(xs.get_shape()[0]), -1])
-    m = tf.reduce_mean(x, 0, True)
-    z = tf.expand_dims(x-m, 2)
-    corr = tf.reduce_mean(tf.matmul(z, tf.transpose(z, perm=[0, 2, 1])), 0)
-    corr_frob_sqr = tf.reduce_sum(tf.square(corr))
-    corr_diag_sqr = tf.reduce_sum(tf.square(tf.diag_part(corr)))
-    loss = 0.5*(corr_frob_sqr - corr_diag_sqr)
-    return loss
-
-
 def center_loss(features, label, alfa, nrof_classes):
     """Center loss based on the paper
     "A Discriminative Feature LearningApproach for Deep Face Recognition"
@@ -93,7 +80,8 @@ def center_loss(features, label, alfa, nrof_classes):
     centers_batch = tf.gather(centers, label)
     diff = (1 - alfa) * (centers_batch - features)
     centers = tf.scatter_sub(centers, label, diff)
-    loss = tf.reduce_mean(tf.square(features - centers_batch))
+    with tf.control_dependencies([centers]):
+        loss = tf.reduce_mean(tf.square(features - centers_batch))
     return loss, centers
 
 
@@ -116,65 +104,56 @@ def shuffle_examples(image_paths, labels):
     image_paths_shuff, labels_shuff = zip(*shuffle_list)
     return image_paths_shuff, labels_shuff
 
-
-def read_images_from_disk(input_queue):
-    """Consumes a single filename and label as a ' '-delimited string.
-    Args:
-      filename_and_label_tensor: A scalar string tensor.
-    Returns:
-      Two tensors: the decoded image, and the string label.
-    """
-    label = input_queue[1]
-    file_contents = tf.read_file(input_queue[0])
-    example = tf.image.decode_image(file_contents, channels=3)
-    return example, label
-
-
 def random_rotate_image(image):
     """ random rotate
     """
     angle = np.random.uniform(low=-10.0, high=10.0)     # pylint: disable=E1101
     return misc.imrotate(image, angle, 'bicubic')
 
-
-def read_and_augment_data(image_list, label_list, image_size, batch_size,
-                          max_nrof_epochs,
-                          random_crop, random_flip, random_rotate,
-                          nrof_preprocess_threads, shuffle=True):
-    """ read and augment data
-    """
-    images = ops.convert_to_tensor(image_list, dtype=tf.string)
-    labels = ops.convert_to_tensor(label_list, dtype=tf.int32)
-
-    # Makes an input queue
-    input_queue = tf.train.slice_input_producer([images, labels],
-                                                num_epochs=max_nrof_epochs,
-                                                shuffle=shuffle)
-
-    images_and_labels = []
+# 1: Random rotate 2: Random crop  4: Random flip  8:  Fixed image standardization  16: Flip
+RANDOM_ROTATE = 1
+RANDOM_CROP = 2
+RANDOM_FLIP = 4
+FIXED_STANDARDIZATION = 8
+FLIP = 16
+def create_input_pipeline(input_queue, image_size, nrof_preprocess_threads, batch_size_placeholder):
+    images_and_labels_list = []
     for _ in range(nrof_preprocess_threads):
-        image, label = read_images_from_disk(input_queue)
-        if random_rotate:
-            image = tf.py_func(random_rotate_image, [image], tf.uint8)
-        if random_crop:
-            image = tf.random_crop(image, [image_size, image_size, 3])
-        else:
-            image = tf.image.resize_image_with_crop_or_pad(image, image_size,
-                                                           image_size)
-        if random_flip:
-            image = tf.image.random_flip_left_right(image)
-        # pylint: disable=no-member
-        image.set_shape((image_size, image_size, 3))
-        image = tf.image.per_image_standardization(image)
-        images_and_labels.append([image, label])
+        filenames, label, control = input_queue.dequeue()
+        images = []
+        for filename in tf.unstack(filenames):
+            file_contents = tf.read_file(filename)
+            image = tf.image.decode_image(file_contents, 3)
+            image = tf.cond(get_control_flag(control[0], RANDOM_ROTATE),
+                            lambda:tf.py_func(random_rotate_image, [image], tf.uint8),
+                            lambda:tf.identity(image))
+            image = tf.cond(get_control_flag(control[0], RANDOM_CROP),
+                            lambda:tf.random_crop(image, image_size + (3,)),
+                            lambda:tf.image.resize_image_with_crop_or_pad(image, image_size[0], image_size[1]))
+            image = tf.cond(get_control_flag(control[0], RANDOM_FLIP),
+                            lambda:tf.image.random_flip_left_right(image),
+                            lambda:tf.identity(image))
+            image = tf.cond(get_control_flag(control[0], FIXED_STANDARDIZATION),
+                            lambda:(tf.cast(image, tf.float32) - 127.5)/128.0,
+                            lambda:tf.image.per_image_standardization(image))
+            image = tf.cond(get_control_flag(control[0], FLIP),
+                            lambda:tf.image.flip_left_right(image),
+                            lambda:tf.identity(image))
+            #pylint: disable=no-member
+            image.set_shape(image_size + (3,))
+            images.append(image)
+        images_and_labels_list.append([images, label])
 
     image_batch, label_batch = tf.train.batch_join(
-        images_and_labels, batch_size=batch_size,
-        capacity=4 * nrof_preprocess_threads * batch_size,
+        images_and_labels_list, batch_size=batch_size_placeholder,
+        shapes=[image_size + (3,), ()], enqueue_many=True,
+        capacity=4 * nrof_preprocess_threads * 100,
         allow_smaller_final_batch=True)
 
     return image_batch, label_batch
 
+def get_control_flag(control, field):
+    return tf.equal(tf.mod(tf.floor_div(control, field), 2), 1)
 
 def _add_loss_summaries(total_loss):
     """Add summaries for losses.
@@ -355,7 +334,10 @@ def get_learning_rate_from_file(filename, epoch):
             if line:
                 par = line.strip().split(':')
                 e = int(par[0])
-                lr = float(par[1])
+                if par[1]=='-':
+                    lr = -1
+                else:
+                    lr = float(par[1])
                 if e <= epoch:
                     learning_rate = lr
                 else:
@@ -374,19 +356,18 @@ class ImageClass():
     def __len__(self):
         return len(self.image_paths)
 
-
-def get_dataset(paths, has_class_directories=True):
+def get_dataset(path, has_class_directories=True):
     dataset = []
-    for path in paths.split(':'):
-        path_exp = os.path.expanduser(path)
-        classes = os.listdir(path_exp)
-        classes.sort()
-        nrof_classes = len(classes)
-        for i in range(nrof_classes):
-            class_name = classes[i]
-            facedir = os.path.join(path_exp, class_name)
-            image_paths = get_image_paths(facedir)
-            dataset.append(ImageClass(class_name, image_paths))
+    path_exp = os.path.expanduser(path)
+    classes = [path for path in os.listdir(path_exp) \
+                    if os.path.isdir(os.path.join(path_exp, path))]
+    classes.sort()
+    nrof_classes = len(classes)
+    for i in range(nrof_classes):
+        class_name = classes[i]
+        facedir = os.path.join(path_exp, class_name)
+        image_paths = get_image_paths(facedir)
+        dataset.append(ImageClass(class_name, image_paths))
 
     return dataset
 
@@ -398,43 +379,41 @@ def get_image_paths(facedir):
         image_paths = [os.path.join(facedir, img) for img in images]
     return image_paths
 
-
-def split_dataset(dataset, split_ratio, mode):
-    if mode == 'SPLIT_CLASSES':
+def split_dataset(dataset, split_ratio, min_nrof_images_per_class, mode):
+    if mode=='SPLIT_CLASSES':
         nrof_classes = len(dataset)
         class_indices = np.arange(nrof_classes)
-        np.random.shuffle(class_indices)    # pylint: disable=E1101
-        split = int(round(nrof_classes*split_ratio))
+        np.random.shuffle(class_indices)
+        split = int(round(nrof_classes*(1-split_ratio)))
         train_set = [dataset[i] for i in class_indices[0:split]]
         test_set = [dataset[i] for i in class_indices[split:-1]]
     elif mode == 'SPLIT_IMAGES':
         train_set = []
         test_set = []
-        min_nrof_images = 2
         for cls in dataset:
             paths = cls.image_paths
-            np.random.shuffle(paths)    # pylint: disable=E1101
-            split = int(round(len(paths)*split_ratio))
-            if split < min_nrof_images:
-                continue  # Not enough images for test set. Skip class...
-            train_set.append(ImageClass(cls.name, paths[0:split]))
-            test_set.append(ImageClass(cls.name, paths[split:-1]))
+            np.random.shuffle(paths)
+            nrof_images_in_class = len(paths)
+            split = int(math.floor(nrof_images_in_class*(1-split_ratio)))
+            if split==nrof_images_in_class:
+                split = nrof_images_in_class-1
+            if split>=min_nrof_images_per_class and nrof_images_in_class-split>=1:
+                train_set.append(ImageClass(cls.name, paths[:split]))
+                test_set.append(ImageClass(cls.name, paths[split:]))
     else:
         raise ValueError('Invalid train/test split mode "%s"' % mode)
     return train_set, test_set
 
-
-def load_model(model):
-    # Check if the model is a model directory (containing a metagraph and a
-    #  checkpoint file)
+def load_model(model, input_map=None):
+    # Check if the model is a model directory (containing a metagraph and a checkpoint file)
     #  or if it is a protobuf file with a frozen graph
     model_exp = os.path.expanduser(model)
     if os.path.isfile(model_exp):
         print('Model filename: %s' % model_exp)
         with gfile.FastGFile(model_exp, 'rb') as fff:
             graph_def = tf.GraphDef()
-            graph_def.ParseFromString(fff.read())
-            tf.import_graph_def(graph_def, name='')
+            graph_def.ParseFromString(f.read())
+            tf.import_graph_def(graph_def, input_map=input_map, name='')
     else:
         print('Model directory: %s' % model_exp)
         meta_file, ckpt_file = get_model_filenames(model_exp)
@@ -442,10 +421,8 @@ def load_model(model):
         print('Metagraph file: %s' % meta_file)
         print('Checkpoint file: %s' % ckpt_file)
 
-        saver = tf.train.import_meta_graph(os.path.join(model_exp, meta_file))
-        saver.restore(tf.get_default_session(),
-                      os.path.join(model_exp, ckpt_file))
-
+        saver = tf.train.import_meta_graph(os.path.join(model_exp, meta_file), input_map=input_map)
+        saver.restore(tf.get_default_session(), os.path.join(model_exp, ckpt_file))
 
 def get_model_filenames(model_dir):
     files = os.listdir(model_dir)
@@ -457,6 +434,11 @@ def get_model_filenames(model_dir):
         raise ValueError('There should not be more than one meta file in '
                          'the model directory (%s)' % model_dir)
     meta_file = meta_files[0]
+    ckpt = tf.train.get_checkpoint_state(model_dir)
+    if ckpt and ckpt.model_checkpoint_path:
+        ckpt_file = os.path.basename(ckpt.model_checkpoint_path)
+        return meta_file, ckpt_file
+
     meta_files = [s for s in files if '.ckpt' in s]
     max_step = -1
     for f in files:
@@ -468,13 +450,25 @@ def get_model_filenames(model_dir):
                 ckpt_file = step_str.groups()[0]
     return meta_file, ckpt_file
 
+def distance(embeddings1, embeddings2, distance_metric=0):
+    if distance_metric==0:
+        # Euclidian distance
+        diff = np.subtract(embeddings1, embeddings2)
+        dist = np.sum(np.square(diff),1)
+    elif distance_metric==1:
+        # Distance based on cosine similarity
+        dot = np.sum(np.multiply(embeddings1, embeddings2), axis=1)
+        norm = np.linalg.norm(embeddings1, axis=1) * np.linalg.norm(embeddings2, axis=1)
+        similarity = dot / norm
+        dist = np.arccos(similarity) / math.pi
+    else:
+        raise 'Undefined distance metric %d' % distance_metric
 
-def calculate_roc(thresholds, embeddings1, embeddings2,
-                  actual_issame, nrof_folds=10):
-    """ ROC: Receiver Operating Characteristic
-    """
-    assert embeddings1.shape[0] == embeddings2.shape[0]
-    assert embeddings1.shape[1] == embeddings2.shape[1]
+    return dist
+
+def calculate_roc(thresholds, embeddings1, embeddings2, actual_issame, nrof_folds=10, distance_metric=0, subtract_mean=False):
+    assert(embeddings1.shape[0] == embeddings2.shape[0])
+    assert(embeddings1.shape[1] == embeddings2.shape[1])
     nrof_pairs = min(len(actual_issame), embeddings1.shape[0])
     nrof_thresholds = len(thresholds)
     k_fold = KFold(n_splits=nrof_folds, shuffle=False)
@@ -483,11 +477,14 @@ def calculate_roc(thresholds, embeddings1, embeddings2,
     fprs = np.zeros((nrof_folds, nrof_thresholds))
     accuracy = np.zeros((nrof_folds))
 
-    diff = np.subtract(embeddings1, embeddings2)    # pylint: disable=E1101
-    dist = np.sum(np.square(diff), 1)               # pylint: disable=E1101
     indices = np.arange(nrof_pairs)
 
     for fold_idx, (train_set, test_set) in enumerate(k_fold.split(indices)):
+        if subtract_mean:
+            mean = np.mean(np.concatenate([embeddings1[train_set], embeddings2[train_set]]), axis=0)
+        else:
+          mean = 0.0
+        dist = distance(embeddings1-mean, embeddings2-mean, distance_metric)
 
         # Find the best threshold for the fold
         acc_train = np.zeros((nrof_thresholds))
@@ -499,20 +496,11 @@ def calculate_roc(thresholds, embeddings1, embeddings2,
             )
         best_threshold_index = np.argmax(acc_train)
         for threshold_idx, threshold in enumerate(thresholds):
-            tprs[fold_idx, threshold_idx], fprs[fold_idx, threshold_idx], _ = \
-                calculate_accuracy(
-                    threshold,
-                    dist[test_set],
-                    actual_issame[test_set]
-                )
-        _, _, accuracy[fold_idx] = calculate_accuracy(
-            thresholds[best_threshold_index],
-            dist[test_set],
-            actual_issame[test_set]
-        )
+            tprs[fold_idx,threshold_idx], fprs[fold_idx,threshold_idx], _ = calculate_accuracy(threshold, dist[test_set], actual_issame[test_set])
+        _, _, accuracy[fold_idx] = calculate_accuracy(thresholds[best_threshold_index], dist[test_set], actual_issame[test_set])
 
-    tpr = np.mean(tprs, 0)
-    fpr = np.mean(fprs, 0)
+        tpr = np.mean(tprs,0)
+        fpr = np.mean(fprs,0)
     return tpr, fpr, accuracy
 
 
@@ -534,10 +522,10 @@ def calculate_accuracy(threshold, dist, actual_issame):
     return tpr, fpr, acc
 
 
-def calculate_val(thresholds, embeddings1, embeddings2, actual_issame,
-                  far_target, nrof_folds=10):
-    assert embeddings1.shape[0] == embeddings2.shape[0]
-    assert embeddings1.shape[1] == embeddings2.shape[1]
+
+def calculate_val(thresholds, embeddings1, embeddings2, actual_issame, far_target, nrof_folds=10, distance_metric=0, subtract_mean=False):
+    assert(embeddings1.shape[0] == embeddings2.shape[0])
+    assert(embeddings1.shape[1] == embeddings2.shape[1])
     nrof_pairs = min(len(actual_issame), embeddings1.shape[0])
     nrof_thresholds = len(thresholds)
     k_fold = KFold(n_splits=nrof_folds, shuffle=False)
@@ -545,12 +533,14 @@ def calculate_val(thresholds, embeddings1, embeddings2, actual_issame,
     val = np.zeros(nrof_folds)
     far = np.zeros(nrof_folds)
 
-    # pylint: disable=E1101
-    diff = np.subtract(embeddings1, embeddings2)
-    dist = np.sum(np.square(diff), 1)
     indices = np.arange(nrof_pairs)
 
     for fold_idx, (train_set, test_set) in enumerate(k_fold.split(indices)):
+        if subtract_mean:
+            mean = np.mean(np.concatenate([embeddings1[train_set], embeddings2[train_set]]), axis=0)
+        else:
+          mean = 0.0
+        dist = distance(embeddings1-mean, embeddings2-mean, distance_metric)
 
         # Find the threshold that gives FAR = far_target
         far_train = np.zeros(nrof_thresholds)
@@ -590,22 +580,29 @@ def calculate_val_far(threshold, dist, actual_issame):
 
 
 def store_revision_info(src_path, output_dir, arg_string):
-    """for Debug
-    """
-    # Get git hash
-    gitproc = Popen(['git', 'rev-parse', 'HEAD'], stdout=PIPE, cwd=src_path)
-    (stdout, _) = gitproc.communicate()
-    git_hash = stdout.strip()
+    try:
+        # Get git hash
+        cmd = ['git', 'rev-parse', 'HEAD']
+        gitproc = Popen(cmd, stdout = PIPE, cwd=src_path)
+        (stdout, _) = gitproc.communicate()
+        git_hash = stdout.strip()
+    except OSError as e:
+        git_hash = ' '.join(cmd) + ': ' +  e.strerror
 
-    # Get local changes
-    gitproc = Popen(['git', 'diff', 'HEAD'], stdout=PIPE, cwd=src_path)
-    (stdout, _) = gitproc.communicate()
-    git_diff = stdout.strip()
+    try:
+        # Get local changes
+        cmd = ['git', 'diff', 'HEAD']
+        gitproc = Popen(cmd, stdout = PIPE, cwd=src_path)
+        (stdout, _) = gitproc.communicate()
+        git_diff = stdout.strip()
+    except OSError as e:
+        git_diff = ' '.join(cmd) + ': ' +  e.strerror
 
     # Store a text file in the log directory
     rev_info_filename = os.path.join(output_dir, 'revision_info.txt')
     with open(rev_info_filename, "w") as text_file:
         text_file.write('arguments: %s\n--------------------\n' % arg_string)
+        text_file.write('tensorflow version: %s\n--------------------\n' % tf.__version__)  # @UndefinedVariable
         text_file.write('git hash: %s\n--------------------\n' % git_hash)
         text_file.write('%s' % git_diff)
 
@@ -637,5 +634,5 @@ def put_images_on_grid(images, shape=(16,8)):
 
 def write_arguments_to_file(args, filename):
     with open(filename, 'w') as f:
-        for key, value in vars(args).iteritems():
+        for key, value in iteritems(vars(args)):
             f.write('%s: %s\n' % (key, str(value)))

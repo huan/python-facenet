@@ -130,47 +130,41 @@ def main(args):
                         # monitor1.waitforbuttonpress()
 
                         nrof_faces = bounding_boxes.shape[0]
-                        if nrof_faces > 0:
-                            det = bounding_boxes[:, 0:4]
+                        if nrof_faces>0:
+                            det = bounding_boxes[:,0:4]
+                            det_arr = []
                             img_size = np.asarray(img.shape)[0:2]
-                            if nrof_faces > 1:
-                                bounding_box_size = (det[:, 2] - det[:, 0]) \
-                                    * (det[:, 3] - det[:, 1])
-                                img_center = img_size / 2
-                                offsets = np.vstack([
-                                    (det[:, 0]+det[:, 2])/2 - img_center[1],
-                                    (det[:, 1]+det[:, 3])/2 - img_center[0]])
-                                offset_dist_squared = np.sum(
-                                    np.power(offsets, 2.0), 0)
-                                # some extra weight on the centering
-                                index = np.argmax(
-                                    bounding_box_size
-                                    - offset_dist_squared
-                                    * 2.0)
-                                det = det[index, :]
-                            det = np.squeeze(det)
-                            bb = np.zeros(4, dtype=np.int32)
-                            bb[0] = np.maximum(det[0]-args.margin/2, 0)
-                            bb[1] = np.maximum(det[1]-args.margin/2, 0)
-                            bb[2] = np.minimum(det[2]+args.margin/2,
-                                               img_size[1])
-                            bb[3] = np.minimum(det[3]+args.margin/2,
-                                               img_size[0])
-                            cropped = img[bb[1]:bb[3], bb[0]:bb[2], :]
+                            if nrof_faces>1:
+                                if args.detect_multiple_faces:
+                                    for i in range(nrof_faces):
+                                        det_arr.append(np.squeeze(det[i]))
+                                else:
+                                    bounding_box_size = (det[:,2]-det[:,0])*(det[:,3]-det[:,1])
+                                    img_center = img_size / 2
+                                    offsets = np.vstack([ (det[:,0]+det[:,2])/2-img_center[1], (det[:,1]+det[:,3])/2-img_center[0] ])
+                                    offset_dist_squared = np.sum(np.power(offsets,2.0),0)
+                                    index = np.argmax(bounding_box_size-offset_dist_squared*2.0) # some extra weight on the centering
+                                    det_arr.append(det[index,:])
+                            else:
+                                det_arr.append(np.squeeze(det))
 
-                            # monitor1.rectangle(bb[0], bb[1], bb[2]-bb[0], bb[3]-bb[1])
-                            # monitor1.waitforbuttonpress()
-
-                            scaled = misc.imresize(
-                                cropped,
-                                (args.image_size, args.image_size),
-                                interp='bilinear')
-                            nrof_successfully_aligned += 1
-                            misc.imsave(output_filename, scaled)
-
-                            # print('scaled.shape: ', scaled.shape)
-                            text_file.write('%s %d %d %d %d\n' % (
-                                output_filename, bb[0], bb[1], bb[2], bb[3]))
+                            for i, det in enumerate(det_arr):
+                                det = np.squeeze(det)
+                                bb = np.zeros(4, dtype=np.int32)
+                                bb[0] = np.maximum(det[0]-args.margin/2, 0)
+                                bb[1] = np.maximum(det[1]-args.margin/2, 0)
+                                bb[2] = np.minimum(det[2]+args.margin/2, img_size[1])
+                                bb[3] = np.minimum(det[3]+args.margin/2, img_size[0])
+                                cropped = img[bb[1]:bb[3],bb[0]:bb[2],:]
+                                scaled = misc.imresize(cropped, (args.image_size, args.image_size), interp='bilinear')
+                                nrof_successfully_aligned += 1
+                                filename_base, file_extension = os.path.splitext(output_filename)
+                                if args.detect_multiple_faces:
+                                    output_filename_n = "{}_{}{}".format(filename_base, i, file_extension)
+                                else:
+                                    output_filename_n = "{}{}".format(filename_base, file_extension)
+                                misc.imsave(output_filename_n, scaled)
+                                text_file.write('%s %d %d %d %d\n' % (output_filename_n, bb[0], bb[1], bb[2], bb[3]))
                         else:
                             print('Unable to align "%s"' % image_path)
                             text_file.write('%s\n' % (output_filename))
@@ -185,27 +179,18 @@ def parse_arguments(argv):
     """
     parser = argparse.ArgumentParser()
 
-    parser.add_argument(
-        'input_dir', type=str,
-        help='Directory with unaligned images.')
-    parser.add_argument(
-        'output_dir', type=str,
-        help='Directory with aligned face thumbnails.')
-    parser.add_argument(
-        '--image_size', type=int, default=182,
-        help='Image size (height, width) in pixels.')
-    parser.add_argument(
-        '--margin', type=int, default=44,
-        help='Margin for the crop around the bounding box (height, width)'
-        ' in pixels.')
-    parser.add_argument(
-        '--random_order', action='store_true',
-        help='Shuffles the order of images to enable alignment '
-        'using multiple processes.')
-    parser.add_argument(
-        '--gpu_memory_fraction', type=float, default=1.0,
-        help='Upper bound on the amount of GPU memory that will '
-        'be used by the process.')
+    parser.add_argument('input_dir', type=str, help='Directory with unaligned images.')
+    parser.add_argument('output_dir', type=str, help='Directory with aligned face thumbnails.')
+    parser.add_argument('--image_size', type=int,
+        help='Image size (height, width) in pixels.', default=182)
+    parser.add_argument('--margin', type=int,
+        help='Margin for the crop around the bounding box (height, width) in pixels.', default=44)
+    parser.add_argument('--random_order',
+        help='Shuffles the order of images to enable alignment using multiple processes.', action='store_true')
+    parser.add_argument('--gpu_memory_fraction', type=float,
+        help='Upper bound on the amount of GPU memory that will be used by the process.', default=1.0)
+    parser.add_argument('--detect_multiple_faces', type=bool,
+                        help='Detect and align multiple faces per image.', default=False)
     return parser.parse_args(argv)
 
 

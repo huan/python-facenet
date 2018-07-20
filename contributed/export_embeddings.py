@@ -1,9 +1,9 @@
 """
 Exports the embeddings and labels of a directory of images as numpy arrays.
 
-Typicall usage expect the image directory to be of the openface/facenet form
-and the images to be aligned. Simply point to your model and your image directory:
-    python facenet/tmp/export_embeddings.py ~/models/facenet/20170216-091149/ ~/datasets/lfw/mylfw
+Typicall usage expect the image directory to be of the openface/facenet form and
+the images to be aligned. Simply point to your model and your image directory:
+    python facenet/contributed/export_embeddings.py ~/models/facenet/20170216-091149/ ~/datasets/lfw/mylfw
 
 Output:
 embeddings.npy -- Embeddings as np array, Use --embeddings_name to change name
@@ -61,12 +61,20 @@ import facenet
 import align.detect_face
 import glob
 
+from six.moves import xrange
 
 def main(args):
     """ main """
     train_set = facenet.get_dataset(args.data_dir)
     image_list, label_list = facenet.get_image_paths_and_labels(train_set)
-    label_strings = [name for name in os.listdir(os.path.expanduser(args.data_dir)) if os.path.isdir(os.path.join(os.path.expanduser(args.data_dir), name))]
+    # fetch the classes (labels as strings) exactly as it's done in get_dataset
+    path_exp = os.path.expanduser(args.data_dir)
+    classes = [path for path in os.listdir(path_exp) \
+               if os.path.isdir(os.path.join(path_exp, path))]
+    classes.sort()
+    # get the label strings
+    label_strings = [name for name in classes if \
+       os.path.isdir(os.path.join(path_exp, name))]
 
     with tf.Graph().as_default():
 
@@ -84,7 +92,10 @@ def main(args):
             nrof_images = len(image_list)
             print('Number of images: ', nrof_images)
             batch_size = args.image_batch
-            nrof_batches = (nrof_images // batch_size) + 1
+            if nrof_images % batch_size == 0:
+                nrof_batches = nrof_images // batch_size
+            else:
+                nrof_batches = (nrof_images // batch_size) + 1
             print('Number of batches: ', nrof_batches)
             embedding_size = embeddings.get_shape()[1]
             emb_array = np.zeros((nrof_images, embedding_size))
@@ -127,7 +138,8 @@ def main(args):
 
             np.save(args.embeddings_name, emb_array)
             np.save(args.labels_name, label_list)
-            np.save(args.labels_strings_name, label_strings)
+            label_strings = np.array(label_strings)
+            np.save(args.labels_strings_name, label_strings[label_list])
 
 
 def load_and_align_data(image_paths, image_size, margin, gpu_memory_fraction):

@@ -39,9 +39,7 @@ import cv2
 
 
 def layer(op):
-    """
-    Decorator for composable network layers.
-    """
+    """Decorator for composable network layers."""
 
     def layer_decorated(self, *args, **kwargs):
         """ layer decorated
@@ -84,18 +82,16 @@ class Network(object):
         self.setup()
 
     def setup(self):
-        '''Construct the network. '''
+        """Construct the network. """
         raise NotImplementedError('Must be implemented by the subclass.')
 
     def load(self, data_path, session, ignore_missing=False):
-        '''Load network weights.
+        """Load network weights.
         data_path: The path to the numpy-serialized network weights
         session: The current TensorFlow session
-        ignore_missing: If true, serialized weights for missing
-        layers are ignored.
-        '''
-        # pylint: disable=no-member
-        data_dict = np.load(data_path, encoding='latin1').item()
+        ignore_missing: If true, serialized weights for missing layers are ignored.
+        """
+        data_dict = np.load(data_path, encoding='latin1').item() #pylint: disable=no-member
 
         for op_name in data_dict:
             with tf.variable_scope(op_name, reuse=True):
@@ -108,10 +104,10 @@ class Network(object):
                             raise
 
     def feed(self, *args):
-        '''Set the input(s) for the next operation by replacing the terminal nodes.
+        """Set the input(s) for the next operation by replacing the terminal nodes.
         The arguments can be either layer names or the actual layers.
-        '''
-        assert args
+        """
+        assert len(args) != 0
         self.terminals = []
         for fed_layer in args:
             if isinstance(fed_layer, string_types):
@@ -123,22 +119,22 @@ class Network(object):
         return self
 
     def get_output(self):
-        '''Returns the current network output.'''
+        """Returns the current network output."""
         return self.terminals[-1]
 
     def get_unique_name(self, prefix):
-        '''Returns an index-suffixed unique name for the given prefix.
+        """Returns an index-suffixed unique name for the given prefix.
         This is used for auto-generating layer names based on the type-prefix.
-        '''
+        """
         ident = sum(t.startswith(prefix) for t, _ in self.layers.items()) + 1
         return '%s_%d' % (prefix, ident)
 
     def make_var(self, name, shape):
-        '''Creates a new TensorFlow variable.'''
+        """Creates a new TensorFlow variable."""
         return tf.get_variable(name, shape, trainable=self.trainable)
 
     def validate_padding(self, padding):
-        '''Verifies that the padding is one of the supported ones.'''
+        """Verifies that the padding is one of the supported ones."""
         assert padding in ('SAME', 'VALID')
 
     @layer
@@ -234,11 +230,9 @@ class Network(object):
     """
     @layer
     def softmax(self, target, axis, name=None):
-        """ softmax
-        """
-        max_axis = tf.reduce_max(target, axis, keep_dims=True)
+        max_axis = tf.reduce_max(target, axis, keepdims=True)
         target_exp = tf.exp(target-max_axis)
-        normalize = tf.reduce_sum(target_exp, axis, keep_dims=True)
+        normalize = tf.reduce_sum(target_exp, axis, keepdims=True)
         softmax = tf.div(target_exp, normalize, name)
         return softmax
 
@@ -357,11 +351,13 @@ def create_mtcnn(sess, model_path):
 
 
 def detect_face(img, minsize, pnet, rnet, onet, threshold, factor):
-    # im: input image
-    # minsize: minimum of faces' size
-    # pnet, rnet, onet: caffemodel
-    # threshold: threshold=[th1 th2 th3], th1-3 are three steps's threshold
-    # fastresize: resize img from last scale (using in high-resolution images) if fastresize==true
+    """Detects faces in an image, and returns bounding boxes and points for them.
+    img: input image
+    minsize: minimum faces' size
+    pnet, rnet, onet: caffemodel
+    threshold: threshold=[th1, th2, th3], th1-3 are three steps's threshold
+    factor: the factor used to create a scaling pyramid of face sizes to detect in the image.
+    """
     factor_count=0
     total_boxes=np.empty((0,9))
     points=np.empty(0)
@@ -370,20 +366,17 @@ def detect_face(img, minsize, pnet, rnet, onet, threshold, factor):
     minl=np.amin([h, w])
     m=12.0/minsize
     minl=minl*m
-    # creat scale pyramid
-    scales = []
-    while minl >= 12:
+    # create scale pyramid
+    scales=[]
+    while minl>=12:
         scales += [m*np.power(factor, factor_count)]
         minl = minl*factor
         factor_count += 1
 
-    """
-    first stage
-    """
+    # first stage
     for scale in scales:
-        # scale = scales[j]
-        hs = int(np.ceil(h*scale))
-        ws = int(np.ceil(w*scale))
+        hs=int(np.ceil(h*scale))
+        ws=int(np.ceil(w*scale))
         im_data = imresample(img, (hs, ws))
         im_data = (im_data-127.5)*0.0078125
         img_x = np.expand_dims(im_data, 0)
@@ -499,17 +492,14 @@ def detect_face(img, minsize, pnet, rnet, onet, threshold, factor):
     return total_boxes, points
 
 
-def bulk_detect_face(
-        images, detection_window_size_ratio, pnet, rnet, onet,
-        threshold, factor):
-    """ builk detect face
-    im: input image
-    minsize: minimum of faces' size
+def bulk_detect_face(images, detection_window_size_ratio, pnet, rnet, onet, threshold, factor):
+    """Detects faces in a list of images
+    images: list containing input images
+    detection_window_size_ratio: ratio of minimum face size to smallest image dimension
     pnet, rnet, onet: caffemodel
-    threshold: threshold=[th1 th2 th3],
-    th1-3 are three steps's threshold [0-1]
+    threshold: threshold=[th1 th2 th3], th1-3 are three steps's threshold [0-1]
+    factor: the factor used to create a scaling pyramid of face sizes to detect in the image.
     """
-
     all_scales = [None] * len(images)
     images_with_boxes = [None] * len(images)
 
@@ -769,10 +759,9 @@ def bulk_detect_face(
 
 
 # function [boundingbox] = bbreg(boundingbox,reg)
-def bbreg(boundingbox, reg):
-    """ calibrate bounding boxes
-    """
-    if reg.shape[1] == 1:
+def bbreg(boundingbox,reg):
+    """Calibrate bounding boxes"""
+    if reg.shape[1]==1:
         reg = np.reshape(reg, (reg.shape[2], reg.shape[3]))
 
     w = boundingbox[:, 2] - boundingbox[:, 0] + 1
@@ -787,10 +776,9 @@ def bbreg(boundingbox, reg):
 
 
 def generateBoundingBox(imap, reg, scale, t):
-    """ use heatmap to generate bounding boxes
-    """
-    stride = 2
-    cellsize = 12
+    """Use heatmap to generate bounding boxes"""
+    stride=2
+    cellsize=12
 
     imap = np.transpose(imap)
     dx1 = np.transpose(reg[:, :, 0])
@@ -852,11 +840,9 @@ def nms(boxes, threshold, method):
 
 
 def pad(total_boxes, w, h):
-    """function [dy edy dx edx y ey x ex tmpw tmph] = pad(total_boxes,w,h)
-    compute the padding coordinates (pad the bounding boxes to square)
-    """
-    tmpw = (total_boxes[:, 2] - total_boxes[:, 0] + 1).astype(np.int32)
-    tmph = (total_boxes[:, 3] - total_boxes[:, 1] + 1).astype(np.int32)
+    """Compute the padding coordinates (pad the bounding boxes to square)"""
+    tmpw = (total_boxes[:,2]-total_boxes[:,0]+1).astype(np.int32)
+    tmph = (total_boxes[:,3]-total_boxes[:,1]+1).astype(np.int32)
     numbox = total_boxes.shape[0]
 
     dx = np.ones((numbox), dtype=np.int32)
@@ -890,14 +876,13 @@ def pad(total_boxes, w, h):
 
 # function [bboxA] = rerec(bboxA)
 def rerec(bboxA):
-    """ convert bboxA to square
-    """
-    h = bboxA[:, 3]-bboxA[:, 1]
-    w = bboxA[:, 2]-bboxA[:, 0]
-    l = np.maximum(w, h)    # pylint: disable=E1101
-    bboxA[:, 0] = bboxA[:, 0]+w*0.5-l*0.5
-    bboxA[:, 1] = bboxA[:, 1]+h*0.5-l*0.5
-    bboxA[:, 2:4] = bboxA[:, 0:2] + np.transpose(np.tile(l, (2, 1)))
+    """Convert bboxA to square."""
+    h = bboxA[:,3]-bboxA[:,1]
+    w = bboxA[:,2]-bboxA[:,0]
+    l = np.maximum(w, h)
+    bboxA[:,0] = bboxA[:,0]+w*0.5-l*0.5
+    bboxA[:,1] = bboxA[:,1]+h*0.5-l*0.5
+    bboxA[:,2:4] = bboxA[:,0:2] + np.transpose(np.tile(l,(2,1)))
     return bboxA
 
 

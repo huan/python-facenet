@@ -31,14 +31,8 @@ import os
 import sys
 import time
 import math
-
-# from tensorflow.python.platform import gfile
-from tensorflow import gfile
-import tensorflow as tf
-import numpy as np
-import facenet
-import h5py
-
+from tensorflow.python.platform import gfile
+from six import iteritems
 
 def main(args):
     """ main """
@@ -115,7 +109,7 @@ def main(args):
                 'distance_to_center':   distance_to_center,
             }
             with h5py.File(args.data_file_name, 'w') as f:
-                for key, value in mdict.iteritems():  # pylint: disable=E1101
+                for key, value in iteritems(mdict):
                     f.create_dataset(key, data=value)
 
 
